@@ -1,0 +1,242 @@
+{
+  "tpl_play_main": {
+    "source": "main_menu.png",
+    "box": [
+      743,
+      590,
+      1166,
+      695
+    ],
+    "method": "color-blob"
+  },
+  "tpl_multibuy": {
+    "source": "start_step_2.png",
+    "box": [
+      516,
+      541,
+      754,
+      629
+    ],
+    "method": "color-blob"
+  },
+  "tpl_result_ok": {
+    "source": "end_round.png",
+    "box": [
+      297,
+      562,
+      627,
+      675
+    ],
+    "method": "color-blob"
+  },
+  "tpl_levelup_confirm": {
+    "source": "end_round_level_up.png",
+    "box": [
+      488,
+      579,
+      791,
+      692
+    ],
+    "method": "color-blob"
+  },
+  "tpl_congrats_confirm": {
+    "source": "main_menu_reward.png",
+    "box": [
+      486,
+      510,
+      789,
+      622
+    ],
+    "method": "color-blob"
+  },
+  "tpl_open_all": {
+    "source": "end_round_box.png",
+    "box": [
+      491,
+      587,
+      788,
+      692
+    ],
+    "method": "color-blob"
+  },
+  "tpl_box_confirm": {
+    "source": "end_round_box_open.png",
+    "box": [
+      491,
+      587,
+      788,
+      692
+    ],
+    "method": "color-blob"
+  },
+  "tpl_cancel": {
+    "source": "money.png",
+    "box": [
+      335,
+      402,
+      638,
+      516
+    ],
+    "method": "color-blob"
+  },
+  "tpl_main_marker": {
+    "source": "main_menu.png",
+    "box": [
+      762,
+      520,
+      1145,
+      578
+    ],
+    "method": "fixed"
+  },
+  "tpl_buy_upgrades": {
+    "source": "start_step_1.png",
+    "box": [
+      150,
+      90,
+      395,
+      135
+    ],
+    "method": "fixed"
+  },
+  "tpl_double_coins": {
+    "source": "start_step_3.png",
+    "box": [
+      700,
+      520,
+      1095,
+      572
+    ],
+    "method": "fixed"
+  },
+  "tpl_pink_box": {
+    "source": "start_step_1.png",
+    "box": [
+      462,
+      528,
+      610,
+      666
+    ],
+    "method": "fixed"
+  },
+  "tpl_multi_icon": {
+    "source": "start_step_1.png",
+    "box": [
+      1058,
+      168,
+      1136,
+      244
+    ],
+    "method": "fixed"
+  },
+  "tpl_pause": {
+    "source": "start.png",
+    "box": [
+      1166,
+      10,
+      1226,
+      68
+    ],
+    "method": "fixed"
+  },
+  "tpl_captcha_header": {
+    "source": "capcha_1.png",
+    "box": [
+      300,
+      30,
+      665,
+      96
+    ],
+    "method": "fixed"
+  },
+  "tpl_play_start": {
+    "source": "start_step_3.png",
+    "box": [
+      702,
+      578,
+      1093,
+      656
+    ],
+    "method": "color-blob"
+  },
+  "tpl_conn_lost": {
+    "source": "conn_lost.png",
+    "box": [
+      420,
+      210,
+      860,
+      266
+    ],
+    "method": "fixed"
+  },
+  "tpl_conn_confirm": {
+    "source": "conn_lost.png",
+    "box": [
+      500,
+      416,
+      778,
+      504
+    ],
+    "method": "color-blob"
+  },
+  "tpl_friend_info": {
+    "source": "friend_info.png",
+    "box": [
+      528,
+      50,
+      762,
+      96
+    ],
+    "method": "fixed"
+  },
+  "tpl_friend_close": {
+    "source": "friend_info.png",
+    "box": [
+      1060,
+      44,
+      1122,
+      102
+    ],
+    "method": "fixed"
+  },
+  "tpl_tries_3": {
+    "source": "capcha_1.png",
+    "box": [
+      560,
+      128,
+      620,
+      160
+    ],
+    "method": "digit"
+  },
+  "tpl_tries_2": {
+    "source": "capcha_2.png",
+    "box": [
+      560,
+      128,
+      620,
+      160
+    ],
+    "method": "digit"
+  },
+  "tpl_tries_1": {
+    "source": "capcha_3.png",
+    "box": [
+      560,
+      128,
+      620,
+      160
+    ],
+    "method": "digit"
+  },
+  "tpl_relay_boost": {
+    "source": "relay_boost.png",
+    "box": [
+      578,
+      288,
+      722,
+      428
+    ],
+    "method": "color-blob"
+  }
+}

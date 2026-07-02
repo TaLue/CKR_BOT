@@ -1,0 +1,7 @@
+# Normalize text line endings; protect binaries from EOL conversion.
+* text=auto
+*.png binary
+*.zip binary
+vendor/minitouch/x86_64/minitouch binary
+vendor/minitouch/x86_64/minitouch-nopie binary
+*.bat text eol=crlf

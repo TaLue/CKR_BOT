@@ -1,0 +1,8 @@
+# Runtime deps (mirror of pyproject [project].dependencies). See pyproject.toml
+# for the authoritative list and optional extras ([dev], [ocr]).
+adbutils>=2.5.0
+opencv-python>=4.9.0
+numpy>=1.26.0
+pydantic>=2.6.0
+PyYAML>=6.0.1
+loguru>=0.7.2

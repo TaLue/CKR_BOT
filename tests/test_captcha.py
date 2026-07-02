@@ -1,0 +1,76 @@
+"""Phase 6: CAPTCHA odd-one-out solver against the real captcha fixtures."""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+import cv2
+import pytest
+
+from ckrbot.game.captcha import (
+    CARD_REGIONS,
+    card_center,
+    find_odd_cards,
+    find_odd_cards_voted,
+    read_tries,
+    solve_captcha,
+    solve_captcha_multiframe,
+)
+from ckrbot.vision.template import TemplateStore
+
+_FIXTURES = Path(__file__).resolve().parent / "fixtures" / "screens"
+_ASSETS = Path(__file__).resolve().parent.parent / "game" / "assets"
+
+
+def _frame(name: str):
+    img = cv2.imread(str(_FIXTURES / name), cv2.IMREAD_COLOR)
+    assert img is not None, name
+    return img
+
+
+# Confirmed visually (montage): the 2 odd (minority-pose) cards per fixture.
+ODD = {
+    "capcha_1.png": [3, 5],  # sit/crouch vs standing
+    "capcha_2.png": [1, 4],  # crouch on board vs run
+    "capcha_3.png": [1, 2],  # lunge vs upright
+}
+
+
+@pytest.mark.parametrize("fixture,expected", list(ODD.items()))
+def test_find_odd_cards(fixture: str, expected: list[int]) -> None:
+    assert find_odd_cards(_frame(fixture)) == expected
+
+
+@pytest.mark.parametrize("fixture,expected", list(ODD.items()))
+def test_solve_returns_centers_of_odd_cards(fixture: str, expected: list[int]) -> None:
+    points = solve_captcha(_frame(fixture))
+    assert points == [card_center(CARD_REGIONS[i]) for i in expected]
+    assert len(points) == 2
+
+
+def test_voting_matches_single_frame_when_frames_identical() -> None:
+    for fixture, expected in ODD.items():
+        frames = [_frame(fixture)] * 3
+        assert find_odd_cards_voted(frames) == expected
+        assert solve_captcha_multiframe(frames) == solve_captcha(_frame(fixture))
+
+
+def test_voting_majority_overrides_one_bad_frame() -> None:
+    """Two good frames (odd = 1,4) outvote one different frame (odd = 3,5)."""
+    frames = [_frame("capcha_2.png"), _frame("capcha_2.png"), _frame("capcha_1.png")]
+    assert find_odd_cards_voted(frames) == [1, 4]  # capcha_2's odd pair wins the vote
+
+
+def test_read_tries_reads_remaining_count() -> None:
+    store = TemplateStore(_ASSETS)
+    tpls = {n: store.load(f"tpl_tries_{n}").image for n in (3, 2, 1)}
+    assert read_tries(_frame("capcha_1.png"), tpls) == 3  # "Tries left 3/3"
+    assert read_tries(_frame("capcha_2.png"), tpls) == 2  # 2/3
+    assert read_tries(_frame("capcha_3.png"), tpls) == 1  # 1/3
+
+
+def test_read_tries_none_when_not_captcha() -> None:
+    store = TemplateStore(_ASSETS)
+    tpls = {n: store.load(f"tpl_tries_{n}").image for n in (3, 2, 1)}
+    assert read_tries(_frame("main_menu.png"), tpls) is None
+    assert read_tries(_frame("end_round.png"), tpls) is None

@@ -1,0 +1,43 @@
+# CKR Farm Bot config — all runtime values live here (no magic numbers in code).
+# Defaults confirmed from the real LDPlayer instance (see spec §2.6 Device Profile).
+
+device:
+  serial: "127.0.0.1:5555"
+  width: 1280
+  height: 720
+  abi: "x86_64"                 # minitouch binary flavor to use
+  touch_device: "/dev/input/event4"
+  touch_max_x: 1279             # = width - 1  -> touch raw coord == pixel coord (identity)
+  touch_max_y: 719              # = height - 1
+  pressure_max: 2               # !! minitouch inject pressure must be <= this (never hardcode 100/1000)
+
+timing:
+  poll_interval_ms: 400
+  settle_ms: 2500               # wait for reward popups after returning to MAIN_MENU (flow §6/§7)
+  tap_delay_ms: 300
+  tap_delay_spread_ms: 120
+  replay_start_delay_ms: 0      # delay macro start after the anchor (+ = later, - = earlier)
+  replay_watch_poll_ms: 200     # how often replay re-checks for end/boost icons (lower = snappier)
+
+farm:
+  max_rounds: 10                 # 0 = infinite; >0 = stop when reached
+  macro_file: "macros/escape_from_the_oven_v1.json"
+
+watchdog:
+  unknown_limit: 6
+  max_recovery_attempts: 3
+
+paths:
+  assets_dir: "game/assets"
+  macros_dir: "macros"
+  log_dir: "logs"
+
+vision:
+  default_threshold: 0.85
+
+captcha:
+  max_wrong: 5             # stop the bot after this many WRONG rounds (Tries left reset up)
+  max_rounds: 15           # total-attempts safety cap (timeouts/retries don't count as wrong)
+  vote_frames: 3           # frames sampled per round to vote through the card animation
+  round_timeout_ms: 2500   # how long to wait for Tries left to change before retrying a tap
+  poll_ms: 200             # how often to re-check Tries left (lower = detects the change faster)

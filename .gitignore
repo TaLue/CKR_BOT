@@ -1,0 +1,30 @@
+# --- CKR Farm Bot: never commit (CLAUDE.md "Do NOT") ---
+macros/*.json
+logs/
+game/screens/
+source/
+# Ignore screenshots, but KEEP template assets + vision-test fixtures.
+# (comments must be on their own line — trailing comments break negation patterns)
+*.png
+!game/assets/*.png
+!tests/fixtures/screens/*.png
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+env/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# --- Runtime / user state ---
+ui_settings.json
+
+# --- Archives / scratch ---
+*.zip

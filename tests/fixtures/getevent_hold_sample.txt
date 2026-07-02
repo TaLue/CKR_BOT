@@ -1,0 +1,11 @@
+# getevent -lt sample: one long HOLD (S/Slide) at (1103,622) held ~5000ms.
+# Validates that DOWN and UP are separate events and the hold duration survives.
+# 0x44f=1103, 0x26e=622.
+[     100.000000] EV_ABS       ABS_MT_TRACKING_ID   00000010
+[     100.000000] EV_KEY       BTN_TOUCH            DOWN
+[     100.000000] EV_ABS       ABS_MT_POSITION_X    0000044f
+[     100.000000] EV_ABS       ABS_MT_POSITION_Y    0000026e
+[     100.000000] EV_SYN       SYN_REPORT           00000000
+[     105.000000] EV_ABS       ABS_MT_TRACKING_ID   ffffffff
+[     105.000000] EV_KEY       BTN_TOUCH            UP
+[     105.000000] EV_SYN       SYN_REPORT           00000000
