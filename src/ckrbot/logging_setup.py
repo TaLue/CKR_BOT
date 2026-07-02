@@ -52,7 +52,9 @@ def setup_logging(
 
     logger.remove()  # drop loguru's default stderr handler
 
-    if to_stderr:
+    # A --windowed (GUI) PyInstaller exe has no console, so sys.stderr is None —
+    # only add the stderr sink when a real stream exists.
+    if to_stderr and sys.stderr is not None:
         logger.add(sys.stderr, level=level, format=_GUI_FORMAT, enqueue=True)
 
     log_path = Path(log_dir)
