@@ -42,6 +42,8 @@ class ControlPanel:
         self._mt = None  # MinitouchClient (owned by a run)
         self._recording = False
         self._was_recording = False
+        self._active_names: list[str] = []   # macro filenames in the random pool
+        self._run_macro_files: list[str] = []  # macros for the current run (set on Start)
 
         # Remembered GUI settings (macro/rounds/start delay), stored next to the exe
         # so they survive restarts — see ckrbot.paths (works as a frozen EXE too).
@@ -74,6 +76,9 @@ class ControlPanel:
                         "pressure_max"):
                 if dev.get(key) is not None:
                     setattr(self._cfg.device, key, dev[key])
+        active = data.get("active_macros")
+        if isinstance(active, list):
+            self._active_names = [str(n) for n in active]
 
     def _save_settings(self) -> None:
         d = self._cfg.device
@@ -86,6 +91,7 @@ class ControlPanel:
                 "touch_max_x": d.touch_max_x, "touch_max_y": d.touch_max_y,
                 "pressure_max": d.pressure_max,
             },
+            "active_macros": self._active_names,
         }
         try:
             self._settings_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
@@ -119,23 +125,33 @@ class ControlPanel:
 
         opts = ttk.Frame(self._root, padding=(8, 0))
         opts.pack(fill="x")
+        # Row 0: macro selection + management + active pool
         ttk.Label(opts, text="Macro:").grid(row=0, column=0, sticky="w")
         self._macro_var = tk.StringVar()
-        self._macro_combo = ttk.Combobox(opts, textvariable=self._macro_var, width=32,
+        self._macro_combo = ttk.Combobox(opts, textvariable=self._macro_var, width=30,
                                           state="readonly")
         self._macro_combo.grid(row=0, column=1, padx=(4, 4))
         self._rename_btn = ttk.Button(opts, text="Rename", width=8, command=self._on_rename)
         self._rename_btn.grid(row=0, column=2, padx=2)
         self._delete_btn = ttk.Button(opts, text="Delete", width=8, command=self._on_delete)
-        self._delete_btn.grid(row=0, column=3, padx=(2, 16))
-        ttk.Label(opts, text="Rounds (0=∞):").grid(row=0, column=4, sticky="w")
+        self._delete_btn.grid(row=0, column=3, padx=2)
+        self._active_btn = ttk.Button(opts, text="Active...", width=8,
+                                      command=self._open_active_dialog)
+        self._active_btn.grid(row=0, column=4, padx=2)
+        self._active_var = tk.StringVar(value="pool: 0")
+        ttk.Label(opts, textvariable=self._active_var).grid(row=0, column=5, padx=6, sticky="w")
+
+        # Row 1: rounds + start delay
+        ttk.Label(opts, text="Rounds (0=∞):").grid(row=1, column=0, sticky="w", pady=(4, 0))
         self._rounds_var = tk.StringVar(value=str(self._cfg.farm.max_rounds))
         ttk.Spinbox(opts, from_=0, to=99999, width=7, textvariable=self._rounds_var).grid(
-            row=0, column=5, padx=4)
-        ttk.Label(opts, text="Start delay (ms):").grid(row=0, column=6, sticky="w", padx=(12, 0))
+            row=1, column=1, sticky="w", padx=4, pady=(4, 0))
+        ttk.Label(opts, text="Start delay (ms):").grid(row=1, column=2, columnspan=2,
+                                                       sticky="e", pady=(4, 0))
         self._delay_var = tk.StringVar(value=str(self._cfg.timing.replay_start_delay_ms))
         ttk.Spinbox(opts, from_=-2000, to=5000, increment=50, width=7,
-                    textvariable=self._delay_var).grid(row=0, column=7, padx=4)
+                    textvariable=self._delay_var).grid(row=1, column=4, sticky="w", padx=4,
+                                                       pady=(4, 0))
 
         status = ttk.Frame(self._root, padding=8)
         status.pack(fill="x")
@@ -162,6 +178,10 @@ class ControlPanel:
         if current not in macros:  # stale (deleted/renamed) or unset -> pick a default
             default = self._cfg.farm.macro_file
             self._macro_var.set(default if default in macros else (macros[0] if macros else ""))
+        # Drop any active-pool entries whose files no longer exist.
+        names = {Path(m).name for m in macros}
+        self._active_names = [n for n in self._active_names if n in names]
+        self._update_active_label()
 
     # --- button actions -----------------------------------------------------
     def _running(self) -> bool:
@@ -181,6 +201,11 @@ class ControlPanel:
         self._cfg.farm.max_rounds = max_rounds
         self._cfg.farm.macro_file = macro_file
         self._cfg.timing.replay_start_delay_ms = start_delay
+
+        self._run_macro_files = self._active_macro_files()  # resolved on main thread
+        if not self._run_macro_files:
+            logger.error("no macro to play — pick one in the dropdown or set an Active pool")
+            return
         self._save_settings()  # remember these for next launch
 
         self._stop_evt = threading.Event()
@@ -256,6 +281,63 @@ class ControlPanel:
         except Exception as err:  # noqa: BLE001
             messagebox.showerror("Rename failed", str(err))
         self._refresh_macros()
+
+    def _update_active_label(self) -> None:
+        self._active_var.set(f"pool: {len(self._active_names)}")
+
+    def _active_macro_files(self) -> list[str]:
+        """Files for the current run: the active pool, else the dropdown selection."""
+        mdir = Path(self._cfg.paths.macros_dir)
+        files = [str(mdir / n) for n in self._active_names if (mdir / n).exists()]
+        if files:
+            return files
+        sel = self._macro_var.get()
+        if sel and Path(sel).exists():
+            return [sel]
+        if Path(self._cfg.farm.macro_file).exists():
+            return [self._cfg.farm.macro_file]
+        return []
+
+    def _open_active_dialog(self) -> None:
+        """Pick which macros go in the random pool (played randomly each round)."""
+        if self._running() or self._recording:
+            return
+        macros = sorted(p.name for p in Path(self._cfg.paths.macros_dir).glob("*.json"))
+        dlg = tk.Toplevel(self._root)
+        dlg.title("Active macros — randomized each round")
+        dlg.transient(self._root)
+        dlg.grab_set()
+        ttk.Label(dlg, justify="left", padding=10,
+                  text="Select macros to randomize each round.\n"
+                       "(none selected = just use the Macro dropdown)").pack(anchor="w")
+        body = ttk.Frame(dlg, padding=(10, 0))
+        body.pack(fill="both", expand=True)
+        lb = tk.Listbox(body, selectmode=tk.MULTIPLE, width=46,
+                        height=min(14, max(3, len(macros))), activestyle="none")
+        scroll = ttk.Scrollbar(body, command=lb.yview)
+        lb.configure(yscrollcommand=scroll.set)
+        lb.pack(side="left", fill="both", expand=True)
+        scroll.pack(side="right", fill="y")
+        for name in macros:
+            lb.insert(tk.END, name)
+        for i, name in enumerate(macros):
+            if name in self._active_names:
+                lb.selection_set(i)
+
+        btns = ttk.Frame(dlg, padding=10)
+        btns.pack(fill="x")
+        ttk.Button(btns, text="Select all",
+                   command=lambda: lb.selection_set(0, tk.END)).pack(side="left")
+        ttk.Button(btns, text="Clear",
+                   command=lambda: lb.selection_clear(0, tk.END)).pack(side="left", padx=4)
+
+        def _ok() -> None:
+            self._active_names = [macros[i] for i in lb.curselection()]
+            self._save_settings()
+            self._update_active_label()
+            dlg.destroy()
+
+        ttk.Button(btns, text="OK", command=_ok).pack(side="right")
 
     def _on_connect(self) -> None:
         """Detect the device profile (abi + touch geometry) and apply it — lets the
@@ -339,7 +421,9 @@ class ControlPanel:
 
         cfg = self._cfg
         try:
-            macro = Macro.load(cfg.farm.macro_file)
+            macros = [Macro.load(f) for f in self._run_macro_files]
+            logger.info("macro pool ({}): {}", len(macros),
+                        ", ".join(Path(f).name for f in self._run_macro_files))
             adb = self._ensure_adb()
             capture = ScreenCapture(adb, cfg.device.width, cfg.device.height)
             templates = TemplateStore(cfg.paths.assets_dir)
@@ -360,7 +444,7 @@ class ControlPanel:
                                  end_poll_ms=cfg.timing.replay_watch_poll_ms)
             self._engine = Engine(
                 capture=capture, identifier=identifier, controller=controller,
-                macro_player=player, macro=macro, config=cfg, templates=templates,
+                macro_player=player, macros=macros, config=cfg, templates=templates,
                 back_fn=lambda: adb.shell("input keyevent 4"),
                 debug_dir=cfg.paths.log_dir,
             )
@@ -409,7 +493,7 @@ class ControlPanel:
     def _set_buttons_recording(self, recording: bool) -> None:
         state = "disabled" if recording else "normal"
         for btn in (self._start_btn, self._pause_btn, self._stop_btn, self._reset_btn,
-                    self._rename_btn, self._delete_btn, self._connect_btn):
+                    self._rename_btn, self._delete_btn, self._connect_btn, self._active_btn):
             btn.configure(state=state)
 
     def _append_log(self, line: str) -> None:

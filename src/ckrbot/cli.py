@@ -167,7 +167,7 @@ def _cmd_farm(config: AppConfig) -> int:
     )
     engine = Engine(
         capture=capture, identifier=identifier, controller=controller,
-        macro_player=player, macro=macro, config=config, templates=templates,
+        macro_player=player, macros=[macro], config=config, templates=templates,
         back_fn=lambda: adb.shell("input keyevent 4"),
         debug_dir=config.paths.log_dir,  # dump annotated captcha frames for review
     )

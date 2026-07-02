@@ -65,9 +65,11 @@ class FakeController:
 class FakeMacroPlayer:
     def __init__(self) -> None:
         self.played = 0
+        self.macros_played: list = []
 
     def play(self, macro, stop_evt, pause_evt) -> bool:
         self.played += 1
+        self.macros_played.append(macro)
         return True
 
 
@@ -82,7 +84,8 @@ def _config(max_rounds: int = 0) -> AppConfig:
     return cfg
 
 
-def _engine(frame_names, stop_evt, *, max_rounds=0, controller=None, player=None):
+def _engine(frame_names, stop_evt, *, max_rounds=0, controller=None, player=None,
+            macros=None, rng=None):
     store = TemplateStore(_ASSETS)
     identifier = ScreenIdentifier(store, CKR_SCREENS, threshold=0.85)
     controller = controller or FakeController()
@@ -92,9 +95,10 @@ def _engine(frame_names, stop_evt, *, max_rounds=0, controller=None, player=None
         identifier=identifier,
         controller=controller,
         macro_player=player,
-        macro=object(),
+        macros=macros if macros is not None else [object()],
         config=_config(max_rounds),
         templates=store,
+        rng=rng,
         sleep=lambda s: None,
     )
     return eng, controller, player
@@ -244,6 +248,23 @@ def test_autoroll_start1_frames_after_multibuy_are_not_tapped() -> None:
     assert "tpl_pink_box" not in ctrl.taps
     assert ctrl.taps == ["tpl_multibuy", "tpl_play_start"]
     assert player.played == 1
+
+
+def test_pick_macro_always_from_active_pool() -> None:
+    """Each round randomly picks a macro from the active pool (never outside it)."""
+    import random
+    pool = [object(), object(), object()]
+    eng, _c, _p = _engine(["main_menu.png"], threading.Event(), macros=pool,
+                          rng=random.Random(0))
+    picks = [eng._pick_macro() for _ in range(60)]
+    assert all(p in pool for p in picks)
+    assert len(set(id(p) for p in picks)) >= 2  # actually varies across the pool
+
+
+def test_single_macro_pool_returns_that_macro() -> None:
+    m = object()
+    eng, _c, _p = _engine(["main_menu.png"], threading.Event(), macros=[m])
+    assert eng._pick_macro() is m
 
 
 def test_conn_lost_taps_confirm_and_continues() -> None:

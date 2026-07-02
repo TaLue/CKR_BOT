@@ -13,6 +13,7 @@ retries; START_3 → tap Play then hand off to MacroPlayer; UNKNOWN → watchdog
 
 from __future__ import annotations
 
+import random
 import time
 from collections.abc import Callable
 from pathlib import Path
@@ -42,9 +43,10 @@ class Engine:
         identifier,
         controller,
         macro_player,
-        macro,
+        macros,
         config: AppConfig,
         templates=None,
+        rng: random.Random | None = None,
         back_fn: Callable[[], None] | None = None,
         debug_dir: str | Path | None = None,
         sleep: Callable[[float], None] = time.sleep,
@@ -53,7 +55,10 @@ class Engine:
         self._identifier = identifier
         self._controller = controller
         self._macro_player = macro_player
-        self._macro = macro
+        # Pool of macros; a random one is played each round so the game does not
+        # see the exact same run repeated (spec §0 layout must stay fixed per macro).
+        self._macros = list(macros)
+        self._rng = rng or random.Random()
         self._cfg = config
         self._back_fn = back_fn
         self._debug_dir = Path(debug_dir) if debug_dir else None
@@ -70,6 +75,12 @@ class Engine:
 
     def _new_watchdog(self) -> Watchdog:
         return Watchdog(self._cfg.watchdog.unknown_limit, self._cfg.watchdog.max_recovery_attempts)
+
+    def _pick_macro(self):
+        """Randomly choose a macro from the active pool (1 macro -> always it)."""
+        if len(self._macros) == 1:
+            return self._macros[0]
+        return self._rng.choice(self._macros)
 
     def reset(self) -> None:
         """Reset the round counter and watchdog (Control Panel Reset button)."""
@@ -140,8 +151,10 @@ class Engine:
 
             if state == State.START_3:
                 if self._controller.tap_template(frame, _PLAY_START):
-                    logger.info("START_3 → Play → macro replay")
-                    self._macro_player.play(self._macro, stop_evt, pause_evt)
+                    macro = self._pick_macro()
+                    logger.info("START_3 → Play → macro replay '{}'",
+                                getattr(macro, "name", "?"))
+                    self._macro_player.play(macro, stop_evt, pause_evt)
                     in_round = True
                 continue
 
