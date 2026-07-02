@@ -68,12 +68,24 @@ class ControlPanel:
             candidate = Path(self._cfg.paths.macros_dir) / name
             if candidate.exists():
                 self._cfg.farm.macro_file = str(candidate)
+        dev = data.get("device")
+        if isinstance(dev, dict):  # detected device profile from a previous Connect LD
+            for key in ("serial", "abi", "touch_device", "touch_max_x", "touch_max_y",
+                        "pressure_max"):
+                if dev.get(key) is not None:
+                    setattr(self._cfg.device, key, dev[key])
 
     def _save_settings(self) -> None:
+        d = self._cfg.device
         data = {
             "macro_name": Path(self._macro_var.get()).name if self._macro_var.get() else "",
             "max_rounds": self._safe_int(self._rounds_var.get(), 0),
             "start_delay_ms": self._safe_int(self._delay_var.get(), 0),
+            "device": {
+                "serial": d.serial, "abi": d.abi, "touch_device": d.touch_device,
+                "touch_max_x": d.touch_max_x, "touch_max_y": d.touch_max_y,
+                "pressure_max": d.pressure_max,
+            },
         }
         try:
             self._settings_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
@@ -100,8 +112,9 @@ class ControlPanel:
         self._stop_btn = ttk.Button(top, text="Stop", command=self._on_stop)
         self._reset_btn = ttk.Button(top, text="Reset", command=self._on_reset)
         self._record_btn = ttk.Button(top, text="Record", command=self._on_record)
+        self._connect_btn = ttk.Button(top, text="Connect LD", command=self._on_connect)
         for i, btn in enumerate((self._start_btn, self._pause_btn, self._stop_btn,
-                                 self._reset_btn, self._record_btn)):
+                                 self._reset_btn, self._record_btn, self._connect_btn)):
             btn.grid(row=0, column=i, padx=3)
 
         opts = ttk.Frame(self._root, padding=(8, 0))
@@ -244,8 +257,64 @@ class ControlPanel:
             messagebox.showerror("Rename failed", str(err))
         self._refresh_macros()
 
+    def _on_connect(self) -> None:
+        """Detect the device profile (abi + touch geometry) and apply it — lets the
+        bot adapt when moved to another machine/LDPlayer."""
+        if self._running() or self._recording:
+            return
+        threading.Thread(target=self._run_connect, daemon=True).start()
+
+    def _run_connect(self) -> None:
+        import adbutils
+
+        from ckrbot.adb.client import AdbClient
+        from ckrbot.adb.probe import detect_profile
+
+        try:
+            client = adbutils.AdbClient()
+            serial = self._cfg.device.serial
+            if ":" in serial:  # network serial (LDPlayer) — connect so it lists
+                try:
+                    client.connect(serial, timeout=3.0)
+                except Exception:  # noqa: BLE001
+                    pass
+            available = [d.serial for d in client.list() if d.state == "device"]
+            if not available:
+                logger.error("Connect LD: no device found — open LDPlayer and enable "
+                             "ADB debugging (check the serial/port in config.yaml)")
+                return
+            use = serial if serial in available else available[0]
+            adb = AdbClient(use)
+            adb.connect()
+            prof = detect_profile(adb)
+
+            d = self._cfg.device
+            if prof["abi"]:
+                d.abi = prof["abi"]
+            d.serial = prof["serial"]
+            d.touch_device = prof["touch_device"]
+            d.touch_max_x = prof["touch_max_x"]
+            d.touch_max_y = prof["touch_max_y"]
+            if prof["pressure_max"] is not None:
+                d.pressure_max = prof["pressure_max"]
+            self._adb = adb  # reuse this connection for the next run
+            self._save_settings()  # persist the detected profile
+
+            logger.info("Connect LD OK: serial={} abi={} touch={} max=({},{}) pressure={}",
+                        d.serial, d.abi, d.touch_device, d.touch_max_x, d.touch_max_y,
+                        d.pressure_max)
+            if d.touch_max_x != d.width - 1 or d.touch_max_y != d.height - 1:
+                logger.warning("touch max ({},{}) != screen-1 ({},{}) — coordinates are "
+                               "NOT pixel-identity; replay may be off (spec §3.1)",
+                               d.touch_max_x, d.touch_max_y, d.width - 1, d.height - 1)
+            if d.abi != "x86_64":
+                logger.warning("abi={} but only the x86_64 minitouch binary is shipped — "
+                               "add vendor/minitouch/{}/minitouch", d.abi, d.abi)
+        except Exception as err:  # noqa: BLE001
+            logger.exception("Connect LD failed: {}", err)
+
     def _on_close(self) -> None:
-        self._save_settings()  # remember current macro/rounds/delay
+        self._save_settings()  # remember current macro/rounds/delay + device
         self._stop_evt.set()
         self._root.after(200, self._root.destroy)
 
@@ -340,7 +409,7 @@ class ControlPanel:
     def _set_buttons_recording(self, recording: bool) -> None:
         state = "disabled" if recording else "normal"
         for btn in (self._start_btn, self._pause_btn, self._stop_btn, self._reset_btn,
-                    self._rename_btn, self._delete_btn):
+                    self._rename_btn, self._delete_btn, self._connect_btn):
             btn.configure(state=state)
 
     def _append_log(self, line: str) -> None:
