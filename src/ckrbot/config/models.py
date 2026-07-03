@@ -44,6 +44,10 @@ class TimingConfig(BaseModel):
     """Loop / tap timing (milliseconds)."""
 
     poll_interval_ms: int = Field(default=400, ge=0)
+    # How fast to poll while WAITING for the GAMEPLAY anchor (pause icon), for both
+    # record and replay. Small = tighter, more consistent t=0 (capture time is the
+    # real floor ~50-100ms). Keep record & replay on the same value.
+    anchor_poll_ms: int = Field(default=20, ge=0)
     settle_ms: int = Field(default=2500, ge=0)
     tap_delay_ms: int = Field(default=300, ge=0)
     tap_delay_spread_ms: int = Field(default=120, ge=0)
@@ -60,6 +64,10 @@ class FarmConfig(BaseModel):
 
     max_rounds: int = Field(default=0, ge=0)  # 0 = infinite
     macro_file: str = "macros/escape_from_the_oven_v1.json"
+    tap_boost: bool = True  # tap the Cookie Relay Boost icon mid-run when it appears
+    # True: Multi-Buy roll until Double Coins (spec flow). False: skip it — just tap
+    # Play on the START screen (no Double Coins buff, no money spent rolling).
+    randomize_double_coins: bool = True
 
 
 class WatchdogConfig(BaseModel):
@@ -81,6 +89,10 @@ class VisionConfig(BaseModel):
     """Template-matching defaults."""
 
     default_threshold: float = Field(default=0.85, ge=0.0, le=1.0)
+    # Lower bar for TAPPING a button: the state is already confirmed by its marker
+    # at default_threshold, so the button is present — allow minor visual variance
+    # (badges, leaderboard overlays) so the tap still fires.
+    tap_threshold: float = Field(default=0.75, ge=0.0, le=1.0)
 
 
 class CaptchaConfig(BaseModel):

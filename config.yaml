@@ -13,6 +13,7 @@ device:
 
 timing:
   poll_interval_ms: 400
+  anchor_poll_ms: 20            # poll speed while finding the pause icon (t=0) — small = tighter sync
   settle_ms: 2500               # wait for reward popups after returning to MAIN_MENU (flow §6/§7)
   tap_delay_ms: 300
   tap_delay_spread_ms: 120
@@ -22,6 +23,8 @@ timing:
 farm:
   max_rounds: 10                 # 0 = infinite; >0 = stop when reached
   macro_file: "macros/escape_from_the_oven_v1.json"
+  tap_boost: true                # tap the Cookie Relay Boost icon mid-run when it appears
+  randomize_double_coins: true   # true: Multi-Buy roll for Double Coins; false: skip -> Play directly
 
 watchdog:
   unknown_limit: 6
@@ -33,7 +36,8 @@ paths:
   log_dir: "logs"
 
 vision:
-  default_threshold: 0.85
+  default_threshold: 0.85       # identify a screen (strict)
+  tap_threshold: 0.75           # tap a button on an already-identified screen (lenient)
 
 captcha:
   max_wrong: 5             # stop the bot after this many WRONG rounds (Tries left reset up)

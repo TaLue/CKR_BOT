@@ -76,6 +76,8 @@ def _cmd_record(config: AppConfig, name: str) -> int:
         end_template="tpl_result_ok",
         threshold=config.vision.default_threshold,
         poll_interval_ms=config.timing.poll_interval_ms,
+        anchor_poll_ms=config.timing.anchor_poll_ms,
+        play_template="tpl_play_start",  # tap-anchor: read t=0 from the Play tap
     )
     logger.info("Play ONE clean round now (no Continue/Quit). Recording until END_ROUND...")
     macro = recorder.record(name)
@@ -140,7 +142,15 @@ def _cmd_farm(config: AppConfig) -> int:
     from ckrbot.macro.player import MacroPlayer
     from ckrbot.vision.template import TemplateStore
 
-    macro = Macro.load(config.farm.macro_file)
+    macro_path = Path(config.farm.macro_file)
+    if not macro_path.exists():  # configured macro missing -> use the first available
+        found = sorted(Path(config.paths.macros_dir).glob("*.json"))
+        if not found:
+            logger.error("no macro found in {}", config.paths.macros_dir)
+            return 1
+        macro_path = found[0]
+        logger.warning("configured macro missing; using {}", macro_path.name)
+    macro = Macro.load(macro_path)
     adb = AdbClient(config.device.serial)
     adb.connect()
     capture = ScreenCapture(adb, config.device.width, config.device.height)
@@ -150,7 +160,7 @@ def _cmd_farm(config: AppConfig) -> int:
     mt.start()
     controller = Controller(
         mt, templates,
-        threshold=config.vision.default_threshold,
+        threshold=config.vision.tap_threshold,
         tap_delay_ms=config.timing.tap_delay_ms,
         tap_delay_spread_ms=config.timing.tap_delay_spread_ms,
     )
@@ -162,12 +172,13 @@ def _cmd_farm(config: AppConfig) -> int:
         boost_templates=("tpl_relay_boost",),  # tap the Cookie Relay Boost mid-run
         threshold=config.vision.default_threshold,
         poll_interval_ms=config.timing.poll_interval_ms,
+        anchor_poll_ms=config.timing.anchor_poll_ms,
         start_delay_ms=config.timing.replay_start_delay_ms,
         end_poll_ms=config.timing.replay_watch_poll_ms,
     )
     engine = Engine(
         capture=capture, identifier=identifier, controller=controller,
-        macro_player=player, macro=macro, config=config, templates=templates,
+        macro_player=player, macros=[macro], config=config, templates=templates,
         back_fn=lambda: adb.shell("input keyevent 4"),
         debug_dir=config.paths.log_dir,  # dump annotated captcha frames for review
     )

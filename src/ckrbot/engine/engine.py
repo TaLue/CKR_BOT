@@ -13,6 +13,7 @@ retries; START_3 → tap Play then hand off to MacroPlayer; UNKNOWN → watchdog
 
 from __future__ import annotations
 
+import random
 import time
 from collections.abc import Callable
 from pathlib import Path
@@ -42,9 +43,10 @@ class Engine:
         identifier,
         controller,
         macro_player,
-        macro,
+        macros,
         config: AppConfig,
         templates=None,
+        rng: random.Random | None = None,
         back_fn: Callable[[], None] | None = None,
         debug_dir: str | Path | None = None,
         sleep: Callable[[float], None] = time.sleep,
@@ -53,7 +55,10 @@ class Engine:
         self._identifier = identifier
         self._controller = controller
         self._macro_player = macro_player
-        self._macro = macro
+        # Pool of macros; a random one is played each round so the game does not
+        # see the exact same run repeated (spec §0 layout must stay fixed per macro).
+        self._macros = list(macros)
+        self._rng = rng or random.Random()
         self._cfg = config
         self._back_fn = back_fn
         self._debug_dir = Path(debug_dir) if debug_dir else None
@@ -71,6 +76,12 @@ class Engine:
     def _new_watchdog(self) -> Watchdog:
         return Watchdog(self._cfg.watchdog.unknown_limit, self._cfg.watchdog.max_recovery_attempts)
 
+    def _pick_macro(self):
+        """Randomly choose a macro from the active pool (1 macro -> always it)."""
+        if len(self._macros) == 1:
+            return self._macros[0]
+        return self._rng.choice(self._macros)
+
     def reset(self) -> None:
         """Reset the round counter and watchdog (Control Panel Reset button)."""
         self.round_count = 0
@@ -81,6 +92,7 @@ class Engine:
         """Main loop; runs until stop_evt is set (or a stop condition triggers)."""
         poll = self._cfg.timing.poll_interval_ms / 1000.0
         settle = self._cfg.timing.settle_ms / 1000.0
+        randomize = self._cfg.farm.randomize_double_coins
         in_round = False
         # After Multi-Buy is tapped, the game auto-rolls: the screen reverts to a
         # START_1-looking panel (no Multi-Buy button, no Double Coins yet) until it
@@ -112,6 +124,19 @@ class Engine:
                 self._handle_captcha(stop_evt)
                 continue
 
+            if not randomize and state in (State.START_1, State.START_2, State.START_3):
+                # Double Coins randomization OFF: skip Multi-Buy — just Play the level
+                # (Play button is on START_1/START_3; START_2 won't occur without Multi).
+                t0 = self._controller.tap_template_at(frame, _PLAY_START)  # tap instant = macro t=0
+                if t0 is not None:
+                    macro = self._pick_macro()
+                    logger.info("START (no Double Coins) → Play → replay '{}'",
+                                getattr(macro, "name", "?"))
+                    self._macro_player.play(macro, stop_evt, pause_evt, t0=t0)
+                    in_round = True
+                stop_evt.wait(poll)
+                continue
+
             if state == State.START_1:
                 # Fresh START_1: select the pink box, then tap Multi to open
                 # Multi-Buy. The Multi icon may not be present/settled the instant
@@ -139,9 +164,12 @@ class Engine:
                 continue
 
             if state == State.START_3:
-                if self._controller.tap_template(frame, _PLAY_START):
-                    logger.info("START_3 → Play → macro replay")
-                    self._macro_player.play(self._macro, stop_evt, pause_evt)
+                t0 = self._controller.tap_template_at(frame, _PLAY_START)  # tap instant = macro t=0
+                if t0 is not None:
+                    macro = self._pick_macro()
+                    logger.info("START_3 → Play → macro replay '{}'",
+                                getattr(macro, "name", "?"))
+                    self._macro_player.play(macro, stop_evt, pause_evt, t0=t0)
                     in_round = True
                 continue
 

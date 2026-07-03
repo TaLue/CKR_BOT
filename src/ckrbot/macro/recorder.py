@@ -30,7 +30,7 @@ from ckrbot.capture.screen import ScreenCapture
 from ckrbot.config.models import DeviceConfig
 from ckrbot.macro.model import InputEvent, Macro, Screen, TouchMax
 from ckrbot.vision.template import TemplateStore
-from ckrbot.vision.vision import find_template
+from ckrbot.vision.vision import Region, find_template
 
 # Optional "/dev/input/...:" device-path column (present only in multi-device dumps).
 _LINE_RE = re.compile(
@@ -203,6 +203,54 @@ def build_macro_events(
     return _balance(_events_from_raw(gameplay, gap_s))
 
 
+def _in_region(x: int, y: int, region: Region, pad: int = 20) -> bool:
+    """True if (x, y) falls inside ``region`` (padded), used to spot the Play tap."""
+    x1, y1, x2, y2 = region
+    return (x1 - pad) <= x <= (x2 + pad) and (y1 - pad) <= y <= (y2 + pad)
+
+
+def build_macro_events_tap(
+    raw: Sequence[RawEvent],
+    play_region: Region,
+    anchor_host: float | None,
+    end_host: float | None,
+) -> list[InputEvent] | None:
+    """Segment the macro anchored to the PLAY-button tap (tap-anchor mode).
+
+    t=0 is the Play tap (the last DOWN inside ``play_region`` — the menu tap that
+    starts the round), timed on the DEVICE clock so it carries no capture latency.
+    Everything after the tap's release, up to END, is gameplay; the first event's
+    dt is the device-clock gap from the Play tap to the first input (loading + lead
+    time). Returns None if no Play tap is found so the caller can fall back to the
+    visual-anchor build.
+
+    ``anchor_host`` (pause detection) bounds the Play-tap search to BEFORE gameplay:
+    a gameplay Slide tap can land near the Play button's x-edge, so only DOWNs before
+    the round starts are Play-tap candidates.
+    """
+    play_down_idx = None
+    for i, e in enumerate(raw):
+        if anchor_host is not None and e.host_ts >= anchor_host:
+            break  # gameplay has started — stop looking for the Play tap
+        if e.action == "DOWN" and _in_region(e.x, e.y, play_region):
+            play_down_idx = i  # keep the LAST such DOWN (the one that started this round)
+    if play_down_idx is None:
+        return None
+    play_tap = raw[play_down_idx]
+    # Skip past the Play tap's own release so it isn't taken as the first input.
+    release_idx = next(
+        (j for j in range(play_down_idx + 1, len(raw)) if raw[j].action == "UP"),
+        play_down_idx,
+    )
+    gameplay = [
+        e for e in raw[release_idx + 1:] if end_host is None or e.host_ts < end_host
+    ]
+    if not gameplay:
+        return None
+    gap_s = gameplay[0].device_ts - play_tap.device_ts
+    return _balance(_events_from_raw(gameplay, gap_s))
+
+
 class MacroRecorder:
     """Records a clean gameplay round into a Macro.
 
@@ -221,6 +269,8 @@ class MacroRecorder:
         end_template: str,
         threshold: float,
         poll_interval_ms: int,
+        anchor_poll_ms: int = 20,
+        play_template: str | None = None,
     ) -> None:
         self._adb = adb
         self._capture = capture
@@ -229,7 +279,15 @@ class MacroRecorder:
         self._anchor_template = anchor_template
         self._end_template = end_template
         self._threshold = threshold
-        self._poll_s = poll_interval_ms / 1000.0
+        # Poll the anchor/END detection loop fast so t=0 is captured tightly (the
+        # same fast rate must be used on replay — see MacroPlayer).
+        self._poll_s = anchor_poll_ms / 1000.0
+        # Tap-anchor mode: t=0 is the Play-button tap read from the getevent stream
+        # (device clock, capture-latency-free). Falls back to the visual pause anchor
+        # if this is None or no Play tap is found. See build_macro_events_tap.
+        self._play_region: Region | None = (
+            templates.region_of(play_template) if play_template else None
+        )
 
     def _matches(self, frame, tpl_name: str) -> bool:
         tpl = self._templates.load(tpl_name)
@@ -280,6 +338,8 @@ class MacroRecorder:
         reader.start()
         logger.info("recording '{}': streaming {}", name, getevent_cmd)
 
+        # anchor_host (pause detection) is no longer macro t=0 — it only marks that
+        # gameplay loaded, and bounds the Play-tap search to before the round starts.
         anchor_host: float | None = None
         end_host: float | None = None
         try:
@@ -288,7 +348,7 @@ class MacroRecorder:
                 if anchor_host is None:
                     if self._matches(frame, self._anchor_template):
                         anchor_host = time.perf_counter()
-                        logger.info("GAMEPLAY anchor detected (t=0)")
+                        logger.info("GAMEPLAY detected (loading done)")
                 elif self._matches(frame, self._end_template):
                     end_host = time.perf_counter()
                     logger.info("END_ROUND detected — stopping record")
@@ -306,10 +366,27 @@ class MacroRecorder:
             raw_snapshot = list(raw)
         if anchor_host is None:
             logger.warning("anchor never detected — building macro without trimming")
-        events = build_macro_events(raw_snapshot, anchor_host, end_host)
+
+        # Tap-anchor (preferred): t=0 = the Play-button tap, timed on the device clock
+        # (no capture latency). Fall back to the visual pause anchor if unavailable.
+        events = None
+        anchored = "pause"
+        if self._play_region is not None:
+            events = build_macro_events_tap(raw_snapshot, self._play_region, anchor_host, end_host)
+            if events is None:
+                logger.warning("tap-anchor: no Play tap found in stream — "
+                               "falling back to visual pause anchor")
+            else:
+                anchored = "Play tap"
+        if events is None:
+            events = build_macro_events(raw_snapshot, anchor_host, end_host)
+
         downs = sum(1 for e in events if e.action == "DOWN")
-        logger.info("recorded {} events ({} DOWN / {} UP) for '{}'",
-                    len(events), downs, len(events) - downs, name)
+        gap = events[0].dt_ms if events else 0
+        # First-event gap = t=0 → first input (spans level loading in tap-anchor mode);
+        # replay waits exactly this long after its own t=0.
+        logger.info("recorded {} events ({} DOWN / {} UP) for '{}' — t=0 @ {}, first-input gap {} ms",
+                    len(events), downs, len(events) - downs, name, anchored, gap)
         return Macro(
             name=name,
             created_at=datetime.now().astimezone().isoformat(),
