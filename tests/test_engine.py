@@ -229,6 +229,18 @@ def test_start2_taps_multibuy_once_then_waits_for_start3() -> None:
     assert player.played == 1
 
 
+def test_randomize_off_skips_multibuy_and_plays_directly() -> None:
+    """With Double Coins randomization OFF, START_1 taps Play (play_start) directly
+    instead of the pink box / Multi-Buy flow."""
+    stop = threading.Event()
+    eng, ctrl, player = _engine(["start_step_1.png"], stop, max_rounds=1)
+    eng._cfg.farm.randomize_double_coins = False
+    eng.run(stop, threading.Event())
+    assert "tpl_play_start" in ctrl.taps
+    assert "tpl_pink_box" not in ctrl.taps and "tpl_multi_icon" not in ctrl.taps
+    assert player.played == 1
+
+
 def test_autoroll_start1_frames_after_multibuy_are_not_tapped() -> None:
     """The reported bug: after Multi-Buy, the game auto-rolls and the screen looks
     like START_1 (no Multi-Buy button, no Double Coins). The bot must WAIT, not

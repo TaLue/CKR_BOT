@@ -65,6 +65,9 @@ class FarmConfig(BaseModel):
     max_rounds: int = Field(default=0, ge=0)  # 0 = infinite
     macro_file: str = "macros/escape_from_the_oven_v1.json"
     tap_boost: bool = True  # tap the Cookie Relay Boost icon mid-run when it appears
+    # True: Multi-Buy roll until Double Coins (spec flow). False: skip it — just tap
+    # Play on the START screen (no Double Coins buff, no money spent rolling).
+    randomize_double_coins: bool = True
 
 
 class WatchdogConfig(BaseModel):

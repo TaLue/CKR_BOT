@@ -24,6 +24,7 @@ farm:
   max_rounds: 10                 # 0 = infinite; >0 = stop when reached
   macro_file: "macros/escape_from_the_oven_v1.json"
   tap_boost: true                # tap the Cookie Relay Boost icon mid-run when it appears
+  randomize_double_coins: true   # true: Multi-Buy roll for Double Coins; false: skip -> Play directly
 
 watchdog:
   unknown_limit: 6

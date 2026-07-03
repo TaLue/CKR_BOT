@@ -92,6 +92,7 @@ class Engine:
         """Main loop; runs until stop_evt is set (or a stop condition triggers)."""
         poll = self._cfg.timing.poll_interval_ms / 1000.0
         settle = self._cfg.timing.settle_ms / 1000.0
+        randomize = self._cfg.farm.randomize_double_coins
         in_round = False
         # After Multi-Buy is tapped, the game auto-rolls: the screen reverts to a
         # START_1-looking panel (no Multi-Buy button, no Double Coins yet) until it
@@ -121,6 +122,18 @@ class Engine:
 
             if state == State.CAPTCHA:
                 self._handle_captcha(stop_evt)
+                continue
+
+            if not randomize and state in (State.START_1, State.START_2, State.START_3):
+                # Double Coins randomization OFF: skip Multi-Buy — just Play the level
+                # (Play button is on START_1/START_3; START_2 won't occur without Multi).
+                if self._controller.tap_template(frame, _PLAY_START):
+                    macro = self._pick_macro()
+                    logger.info("START (no Double Coins) → Play → replay '{}'",
+                                getattr(macro, "name", "?"))
+                    self._macro_player.play(macro, stop_evt, pause_evt)
+                    in_round = True
+                stop_evt.wait(poll)
                 continue
 
             if state == State.START_1:

@@ -67,6 +67,8 @@ class ControlPanel:
             self._cfg.timing.replay_start_delay_ms = data["start_delay_ms"]
         if isinstance(data.get("tap_boost"), bool):
             self._cfg.farm.tap_boost = data["tap_boost"]
+        if isinstance(data.get("randomize_double_coins"), bool):
+            self._cfg.farm.randomize_double_coins = data["randomize_double_coins"]
         name = data.get("macro_name")
         if name:  # stored as a bare filename so it survives the app moving folders
             candidate = Path(self._cfg.paths.macros_dir) / name
@@ -89,6 +91,7 @@ class ControlPanel:
             "max_rounds": self._safe_int(self._rounds_var.get(), 0),
             "start_delay_ms": self._safe_int(self._delay_var.get(), 0),
             "tap_boost": bool(self._boost_var.get()),
+            "randomize_double_coins": bool(self._rdc_var.get()),
             "device": {
                 "serial": d.serial, "abi": d.abi, "touch_device": d.touch_device,
                 "touch_max_x": d.touch_max_x, "touch_max_y": d.touch_max_y,
@@ -155,9 +158,13 @@ class ControlPanel:
         ttk.Spinbox(opts, from_=-2000, to=5000, increment=50, width=7,
                     textvariable=self._delay_var).grid(row=1, column=4, sticky="w", padx=4,
                                                        pady=(4, 0))
+        # Row 2: behavior toggles
         self._boost_var = tk.BooleanVar(value=self._cfg.farm.tap_boost)
         ttk.Checkbutton(opts, text="Tap cookie relay", variable=self._boost_var).grid(
-            row=1, column=5, sticky="w", padx=(12, 0), pady=(4, 0))
+            row=2, column=0, columnspan=2, sticky="w", pady=(4, 0))
+        self._rdc_var = tk.BooleanVar(value=self._cfg.farm.randomize_double_coins)
+        ttk.Checkbutton(opts, text="Randomize Double Coins", variable=self._rdc_var).grid(
+            row=2, column=2, columnspan=4, sticky="w", pady=(4, 0))
 
         status = ttk.Frame(self._root, padding=8)
         status.pack(fill="x")
@@ -214,6 +221,7 @@ class ControlPanel:
         self._cfg.farm.max_rounds = max_rounds
         self._cfg.farm.macro_file = macro_file
         self._cfg.farm.tap_boost = bool(self._boost_var.get())
+        self._cfg.farm.randomize_double_coins = bool(self._rdc_var.get())
         self._cfg.timing.replay_start_delay_ms = start_delay
 
         self._run_macro_files = self._active_macro_files()  # resolved on main thread
