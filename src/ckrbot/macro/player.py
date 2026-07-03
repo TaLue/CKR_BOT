@@ -46,6 +46,7 @@ class MacroPlayer:
         anchor_template: str,
         threshold: float,
         poll_interval_ms: int,
+        anchor_poll_ms: int = 20,
         end_templates: tuple[str, ...] = (),
         boost_templates: tuple[str, ...] = (),
         boost_threshold: float = 0.7,
@@ -62,6 +63,9 @@ class MacroPlayer:
         self._anchor_template = anchor_template
         self._threshold = threshold
         self._poll_s = poll_interval_ms / 1000.0
+        # Poll fast while waiting for the anchor so t=0 lines up with the recorder's
+        # (both use the same small interval) — see MacroRecorder.
+        self._anchor_poll_s = anchor_poll_ms / 1000.0
         # Shift the whole macro relative to the anchor (compensates a small record
         # vs replay anchor-timing offset). Positive = macro starts later.
         self._start_delay_s = start_delay_ms / 1000.0
@@ -105,7 +109,7 @@ class MacroPlayer:
                     self._anchor_timeout_s,
                 )
                 return False
-            self._sleep(self._poll_s)
+            self._sleep(self._anchor_poll_s)
         return False
 
     def _replay(self, events, stop_evt, pause_evt, end_evt=None) -> bool:

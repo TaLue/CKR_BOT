@@ -44,6 +44,10 @@ class TimingConfig(BaseModel):
     """Loop / tap timing (milliseconds)."""
 
     poll_interval_ms: int = Field(default=400, ge=0)
+    # How fast to poll while WAITING for the GAMEPLAY anchor (pause icon), for both
+    # record and replay. Small = tighter, more consistent t=0 (capture time is the
+    # real floor ~50-100ms). Keep record & replay on the same value.
+    anchor_poll_ms: int = Field(default=20, ge=0)
     settle_ms: int = Field(default=2500, ge=0)
     tap_delay_ms: int = Field(default=300, ge=0)
     tap_delay_spread_ms: int = Field(default=120, ge=0)

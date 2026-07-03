@@ -440,6 +440,7 @@ class ControlPanel:
                                  boost_templates=("tpl_relay_boost",),
                                  threshold=cfg.vision.default_threshold,
                                  poll_interval_ms=cfg.timing.poll_interval_ms,
+                                 anchor_poll_ms=cfg.timing.anchor_poll_ms,
                                  start_delay_ms=cfg.timing.replay_start_delay_ms,
                                  end_poll_ms=cfg.timing.replay_watch_poll_ms)
             self._engine = Engine(
@@ -477,7 +478,8 @@ class ControlPanel:
             recorder = MacroRecorder(adb, capture, templates, device=cfg.device,
                                      anchor_template="tpl_pause", end_template="tpl_result_ok",
                                      threshold=cfg.vision.default_threshold,
-                                     poll_interval_ms=cfg.timing.poll_interval_ms)
+                                     poll_interval_ms=cfg.timing.poll_interval_ms,
+                                     anchor_poll_ms=cfg.timing.anchor_poll_ms)
             logger.info("recording '{}': play ONE clean round (stops at END_ROUND)", name)
             macro = recorder.record(name, stop_evt=self._stop_evt)
             out = Path(cfg.paths.macros_dir) / f"{name}.json"

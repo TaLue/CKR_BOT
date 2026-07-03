@@ -13,6 +13,7 @@ device:
 
 timing:
   poll_interval_ms: 400
+  anchor_poll_ms: 20            # poll speed while finding the pause icon (t=0) — small = tighter sync
   settle_ms: 2500               # wait for reward popups after returning to MAIN_MENU (flow §6/§7)
   tap_delay_ms: 300
   tap_delay_spread_ms: 120

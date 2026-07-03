@@ -76,6 +76,7 @@ def _cmd_record(config: AppConfig, name: str) -> int:
         end_template="tpl_result_ok",
         threshold=config.vision.default_threshold,
         poll_interval_ms=config.timing.poll_interval_ms,
+        anchor_poll_ms=config.timing.anchor_poll_ms,
     )
     logger.info("Play ONE clean round now (no Continue/Quit). Recording until END_ROUND...")
     macro = recorder.record(name)
@@ -162,6 +163,7 @@ def _cmd_farm(config: AppConfig) -> int:
         boost_templates=("tpl_relay_boost",),  # tap the Cookie Relay Boost mid-run
         threshold=config.vision.default_threshold,
         poll_interval_ms=config.timing.poll_interval_ms,
+        anchor_poll_ms=config.timing.anchor_poll_ms,
         start_delay_ms=config.timing.replay_start_delay_ms,
         end_poll_ms=config.timing.replay_watch_poll_ms,
     )

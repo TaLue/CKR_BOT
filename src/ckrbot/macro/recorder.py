@@ -221,6 +221,7 @@ class MacroRecorder:
         end_template: str,
         threshold: float,
         poll_interval_ms: int,
+        anchor_poll_ms: int = 20,
     ) -> None:
         self._adb = adb
         self._capture = capture
@@ -229,7 +230,9 @@ class MacroRecorder:
         self._anchor_template = anchor_template
         self._end_template = end_template
         self._threshold = threshold
-        self._poll_s = poll_interval_ms / 1000.0
+        # Poll the anchor/END detection loop fast so t=0 is captured tightly (the
+        # same fast rate must be used on replay — see MacroPlayer).
+        self._poll_s = anchor_poll_ms / 1000.0
 
     def _matches(self, frame, tpl_name: str) -> bool:
         tpl = self._templates.load(tpl_name)
