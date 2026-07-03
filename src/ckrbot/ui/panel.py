@@ -453,7 +453,7 @@ class ControlPanel:
             self._mt = MinitouchClient(adb, _minitouch_binary(cfg))
             self._mt.start()
             controller = Controller(self._mt, templates,
-                                    threshold=cfg.vision.default_threshold,
+                                    threshold=cfg.vision.tap_threshold,
                                     tap_delay_ms=cfg.timing.tap_delay_ms,
                                     tap_delay_spread_ms=cfg.timing.tap_delay_spread_ms)
             boost_templates = ("tpl_relay_boost",) if cfg.farm.tap_boost else ()

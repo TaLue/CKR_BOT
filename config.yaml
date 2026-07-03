@@ -36,7 +36,8 @@ paths:
   log_dir: "logs"
 
 vision:
-  default_threshold: 0.85
+  default_threshold: 0.85       # identify a screen (strict)
+  tap_threshold: 0.75           # tap a button on an already-identified screen (lenient)
 
 captcha:
   max_wrong: 5             # stop the bot after this many WRONG rounds (Tries left reset up)

@@ -89,6 +89,10 @@ class VisionConfig(BaseModel):
     """Template-matching defaults."""
 
     default_threshold: float = Field(default=0.85, ge=0.0, le=1.0)
+    # Lower bar for TAPPING a button: the state is already confirmed by its marker
+    # at default_threshold, so the button is present — allow minor visual variance
+    # (badges, leaderboard overlays) so the tap still fires.
+    tap_threshold: float = Field(default=0.75, ge=0.0, le=1.0)
 
 
 class CaptchaConfig(BaseModel):

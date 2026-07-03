@@ -141,7 +141,15 @@ def _cmd_farm(config: AppConfig) -> int:
     from ckrbot.macro.player import MacroPlayer
     from ckrbot.vision.template import TemplateStore
 
-    macro = Macro.load(config.farm.macro_file)
+    macro_path = Path(config.farm.macro_file)
+    if not macro_path.exists():  # configured macro missing -> use the first available
+        found = sorted(Path(config.paths.macros_dir).glob("*.json"))
+        if not found:
+            logger.error("no macro found in {}", config.paths.macros_dir)
+            return 1
+        macro_path = found[0]
+        logger.warning("configured macro missing; using {}", macro_path.name)
+    macro = Macro.load(macro_path)
     adb = AdbClient(config.device.serial)
     adb.connect()
     capture = ScreenCapture(adb, config.device.width, config.device.height)
@@ -151,7 +159,7 @@ def _cmd_farm(config: AppConfig) -> int:
     mt.start()
     controller = Controller(
         mt, templates,
-        threshold=config.vision.default_threshold,
+        threshold=config.vision.tap_threshold,
         tap_delay_ms=config.timing.tap_delay_ms,
         tap_delay_spread_ms=config.timing.tap_delay_spread_ms,
     )
