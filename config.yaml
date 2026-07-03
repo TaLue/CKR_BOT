@@ -45,3 +45,18 @@ captcha:
   vote_frames: 3           # frames sampled per round to vote through the card animation
   round_timeout_ms: 2500   # how long to wait for Tries left to change before retrying a tap
   poll_ms: 200             # how often to re-check Tries left (lower = detects the change faster)
+
+hearts:
+  threshold: 0.85
+  send_region: [585, 265, 725, 630]      # heart-letter button column (all rows)
+  ask_confirm_region: [660, 405, 910, 512]   # dialog 1 Confirm (right)
+  sent_confirm_region: [480, 405, 800, 512]  # dialog 2 Confirm (center)
+  list_region: [150, 265, 720, 625]      # rows area, for scroll-end compare
+  swipe_from: [430, 560]
+  swipe_to: [430, 320]
+  swipe_ms: 400
+  action_delay_ms: 600
+  scroll_settle_ms: 700
+  poll_ms: 400
+  max_scrolls: 40
+  unchanged_mad: 2.0

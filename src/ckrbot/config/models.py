@@ -107,6 +107,29 @@ class CaptchaConfig(BaseModel):
     poll_ms: int = Field(default=200, ge=20)         # how often to re-check Tries left (faster = snappier)
 
 
+class HeartsConfig(BaseModel):
+    """Send-Hearts (free Life) mode. Regions are (x1,y1,x2,y2) in pixel space; the
+    user is assumed to be on the Friends list when the mode starts."""
+
+    threshold: float = Field(default=0.85, ge=0.0, le=1.0)
+    # Column where the green heart-letter send buttons appear (search all rows).
+    send_region: tuple[int, int, int, int] = (585, 265, 725, 630)
+    # Green Confirm on the "Send X a free Life?" dialog (right button).
+    ask_confirm_region: tuple[int, int, int, int] = (660, 405, 910, 512)
+    # Green Confirm on the "Message sent!" dialog (centered button).
+    sent_confirm_region: tuple[int, int, int, int] = (480, 405, 800, 512)
+    # Rows area, compared before/after a scroll to detect the bottom of the list.
+    list_region: tuple[int, int, int, int] = (150, 265, 720, 625)
+    swipe_from: tuple[int, int] = (430, 560)
+    swipe_to: tuple[int, int] = (430, 320)
+    swipe_ms: int = Field(default=400, ge=0)
+    action_delay_ms: int = Field(default=600, ge=0)   # wait after a tap for the next screen
+    scroll_settle_ms: int = Field(default=700, ge=0)  # wait after a swipe before compare/re-scan
+    poll_ms: int = Field(default=400, ge=0)
+    max_scrolls: int = Field(default=40, ge=1)        # safety cap on total scrolls
+    unchanged_mad: float = Field(default=2.0, ge=0.0)  # list mean-abs-diff below this = at bottom
+
+
 class AppConfig(BaseModel):
     """Root config aggregating every section (spec §9)."""
 
@@ -117,6 +140,7 @@ class AppConfig(BaseModel):
     paths: PathsConfig = Field(default_factory=PathsConfig)
     vision: VisionConfig = Field(default_factory=VisionConfig)
     captcha: CaptchaConfig = Field(default_factory=CaptchaConfig)
+    hearts: HeartsConfig = Field(default_factory=HeartsConfig)
 
     @model_validator(mode="after")
     def _warn_if_not_pixel_identity(self) -> "AppConfig":
