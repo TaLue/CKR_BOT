@@ -190,6 +190,8 @@ class MacroPlayer:
         """
         end_tpls = [self._templates.load(name) for name in self._end_templates]
         boost_tpls = [self._templates.load(name) for name in self._boost_templates]
+        logger.info("replay watcher started (end={} boost={} boost_thr={})",
+                    [t.name for t in end_tpls], [t.name for t in boost_tpls], self._boost_threshold)
         while not (watch_stop.is_set() or stop_evt.is_set() or end_evt.is_set()):
             try:
                 frame = self._capture.grab()
@@ -200,14 +202,19 @@ class MacroPlayer:
                         return
                 # Tap the boost EVERY poll it is visible: a successful tap makes the
                 # icon vanish (self-limiting); if a tap didn't register we retry.
+                # Search FULL-FRAME (region=None): the boost pops in with a scale/bounce
+                # animation, so its manifest crop box (== template size, zero search
+                # margin) misses it — the icon is never at the exact resting pixel.
+                # (Confirmed: present ⇒ conf≈0.99, absent ⇒ ≤~0.38, so 0.7 is safe.)
                 for tpl in boost_tpls:
-                    result = find_template(frame, tpl.image, tpl.region)
+                    result = find_template(frame, tpl.image, None)
                     if result.confidence >= self._boost_threshold:
-                        logger.info("boost icon '{}' → tap {}", tpl.name, result.center)
+                        logger.info("boost icon '{}' → tap {} (conf={:.3f})",
+                                    tpl.name, result.center, result.confidence)
                         self._mt.tap_raw(result.center[0], result.center[1], contact=1)
                         break
             except Exception as err:  # noqa: BLE001 - watcher must not crash replay
-                logger.debug("replay watcher grab failed: {}", err)
+                logger.warning("replay watcher grab/match failed: {}", err)
             watch_stop.wait(self._end_poll_s)
 
     def _await_unpaused(self, pause_evt, stop_evt, release) -> float:

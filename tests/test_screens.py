@@ -72,14 +72,33 @@ def test_state_signal_matches_in_region(fixture: str, state: str, tpl: str) -> N
 
 def test_relay_boost_icon_detected_only_on_boost_screen() -> None:
     """The in-gameplay Cookie Relay Boost icon is tappable on its screen and does
-    not false-trigger on ordinary gameplay."""
+    not false-trigger on ordinary gameplay. The watcher searches FULL-FRAME
+    (region=None), so mirror that here."""
     tpl = _store.load("tpl_relay_boost")
 
     def conf(fixture: str) -> float:
-        return find_template(_frame(fixture), tpl.image, _pad(tpl.region)).confidence
+        return find_template(_frame(fixture), tpl.image, None).confidence
 
     assert conf("relay_boost.png") >= 0.7
     assert conf("start.png") < 0.7  # gameplay without the boost prompt
+
+
+def test_relay_boost_full_frame_needed_for_offset_icon() -> None:
+    """Regression ('boost never taps'): the manifest crop box for tpl_relay_boost is
+    exactly the template size (zero slide room), so an icon that pops in a few px off
+    its resting pixel (scale/bounce animation) is missed by the tight region but still
+    found full-frame — which is why the watcher searches region=None."""
+    import numpy as np
+
+    tpl = _store.load("tpl_relay_boost")
+    frame = _frame("relay_boost.png")
+    shifted = np.zeros_like(frame)  # nudge the icon 8px off its crop pixel
+    shifted[8:, 8:] = frame[:-8, :-8]
+
+    tight = find_template(shifted, tpl.image, tpl.region).confidence  # manifest box (== tpl size)
+    full = find_template(shifted, tpl.image, None).confidence         # what the watcher uses
+    assert full >= 0.7, f"full-frame must still find the offset icon: {full:.3f}"
+    assert tight < 0.7 <= full  # the zero-margin box loses the shifted icon
 
 
 def test_start1_vs_start3_separated_by_double_coins() -> None:
