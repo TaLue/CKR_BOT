@@ -64,6 +64,7 @@ class FarmConfig(BaseModel):
 
     max_rounds: int = Field(default=0, ge=0)  # 0 = infinite
     macro_file: str = "macros/escape_from_the_oven_v1.json"
+    tap_boost: bool = True  # tap the Cookie Relay Boost icon mid-run when it appears
 
 
 class WatchdogConfig(BaseModel):

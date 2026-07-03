@@ -65,6 +65,8 @@ class ControlPanel:
             self._cfg.farm.max_rounds = data["max_rounds"]
         if isinstance(data.get("start_delay_ms"), int):
             self._cfg.timing.replay_start_delay_ms = data["start_delay_ms"]
+        if isinstance(data.get("tap_boost"), bool):
+            self._cfg.farm.tap_boost = data["tap_boost"]
         name = data.get("macro_name")
         if name:  # stored as a bare filename so it survives the app moving folders
             candidate = Path(self._cfg.paths.macros_dir) / name
@@ -86,6 +88,7 @@ class ControlPanel:
             "macro_name": Path(self._macro_var.get()).name if self._macro_var.get() else "",
             "max_rounds": self._safe_int(self._rounds_var.get(), 0),
             "start_delay_ms": self._safe_int(self._delay_var.get(), 0),
+            "tap_boost": bool(self._boost_var.get()),
             "device": {
                 "serial": d.serial, "abi": d.abi, "touch_device": d.touch_device,
                 "touch_max_x": d.touch_max_x, "touch_max_y": d.touch_max_y,
@@ -152,6 +155,9 @@ class ControlPanel:
         ttk.Spinbox(opts, from_=-2000, to=5000, increment=50, width=7,
                     textvariable=self._delay_var).grid(row=1, column=4, sticky="w", padx=4,
                                                        pady=(4, 0))
+        self._boost_var = tk.BooleanVar(value=self._cfg.farm.tap_boost)
+        ttk.Checkbutton(opts, text="Tap boost icon", variable=self._boost_var).grid(
+            row=1, column=5, sticky="w", padx=(12, 0), pady=(4, 0))
 
         status = ttk.Frame(self._root, padding=8)
         status.pack(fill="x")
@@ -200,6 +206,7 @@ class ControlPanel:
         macro_file = self._macro_var.get() or self._cfg.farm.macro_file
         self._cfg.farm.max_rounds = max_rounds
         self._cfg.farm.macro_file = macro_file
+        self._cfg.farm.tap_boost = bool(self._boost_var.get())
         self._cfg.timing.replay_start_delay_ms = start_delay
 
         self._run_macro_files = self._active_macro_files()  # resolved on main thread
@@ -435,9 +442,10 @@ class ControlPanel:
                                     threshold=cfg.vision.default_threshold,
                                     tap_delay_ms=cfg.timing.tap_delay_ms,
                                     tap_delay_spread_ms=cfg.timing.tap_delay_spread_ms)
+            boost_templates = ("tpl_relay_boost",) if cfg.farm.tap_boost else ()
             player = MacroPlayer(self._mt, capture, templates, anchor_template="tpl_pause",
                                  end_templates=("tpl_result_ok", "tpl_captcha_header"),
-                                 boost_templates=("tpl_relay_boost",),
+                                 boost_templates=boost_templates,
                                  threshold=cfg.vision.default_threshold,
                                  poll_interval_ms=cfg.timing.poll_interval_ms,
                                  anchor_poll_ms=cfg.timing.anchor_poll_ms,
