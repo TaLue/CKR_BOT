@@ -196,6 +196,20 @@ class MinitouchClient:
         tap during macro replay) without disturbing the macro's contact 0."""
         self._send(f"d {contact} {x} {y} {self.pressure}\nc\nu {contact}\nc\n")
 
+    def swipe(self, x1: int, y1: int, x2: int, y2: int,
+              duration_ms: int = 300, steps: int = 12) -> None:
+        """Drag contact 0 from (x1,y1) to (x2,y2) over ``duration_ms`` in ``steps``
+        linear moves (a scroll gesture). Identity coords; pressure is clamped."""
+        p = self.pressure
+        self._send(f"d 0 {x1} {y1} {p}\nc\n")
+        for i in range(1, steps + 1):
+            xi = round(x1 + (x2 - x1) * i / steps)
+            yi = round(y1 + (y2 - y1) * i / steps)
+            self._send(f"m 0 {xi} {yi} {p}\nc\n")
+            if duration_ms:
+                time.sleep(duration_ms / 1000.0 / steps)
+        self._send(f"u 0\n")
+
     # --- teardown -----------------------------------------------------------
     def _teardown(self) -> None:
         """Best-effort cleanup of socket, daemon and forward (never raises)."""
