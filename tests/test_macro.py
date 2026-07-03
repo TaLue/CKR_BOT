@@ -9,8 +9,12 @@ from ckrbot.macro.model import InputEvent, Macro, Screen, TouchMax
 from ckrbot.macro.recorder import (
     RawEvent,
     build_macro_events,
+    build_macro_events_tap,
     parse_getevent_events,
 )
+
+# tpl_play_start button box (crops_manifest) — the Play tap lands inside this.
+_PLAY_REGION = (702, 578, 1093, 656)
 
 _FIXTURES = Path(__file__).resolve().parent / "fixtures"
 
@@ -178,6 +182,68 @@ def test_dangling_up_dropped_and_dt_folded() -> None:
     ]
     # first event dt = anchor gap(500ms) + dropped-UP's device gap(200ms) = 700ms
     assert events[0].dt_ms == 700
+
+
+# ---- tap-anchor segmentation (t=0 = Play tap, device clock) -----------------
+
+def test_tap_anchor_gap_measured_from_play_tap_device_ts() -> None:
+    """t=0 = the Play tap; first gameplay dt = device-clock gap (spans loading),
+    capture-latency-free. Play tap DOWN+UP are excluded from the macro."""
+    raw = [
+        _raw(5.0, 50.9, "DOWN", 897, 617),    # Play tap (inside play region)
+        _raw(5.05, 50.95, "UP", 897, 617),    # Play release
+        # ...level loading (no events)...
+        _raw(9.0, 55.5, "DOWN", 175, 625),    # first gameplay input
+        _raw(9.05, 55.55, "UP", 175, 625),
+    ]
+    events = build_macro_events_tap(raw, _PLAY_REGION, anchor_host=54.0, end_host=None)
+    assert [(e.action, e.x, e.y) for e in events] == [
+        ("DOWN", 175, 625), ("UP", 175, 625)
+    ]
+    assert events[0].dt_ms == 4000  # 9.0 - 5.0 device-ts gap (loading + lead), not host
+
+
+def test_tap_anchor_uses_last_play_tap() -> None:
+    """A double-tap on Play uses the LAST one as t=0."""
+    raw = [
+        _raw(4.0, 40.0, "DOWN", 900, 620), _raw(4.05, 40.05, "UP", 900, 620),
+        _raw(5.0, 50.0, "DOWN", 897, 617), _raw(5.05, 50.05, "UP", 897, 617),  # last Play tap
+        _raw(9.0, 55.0, "DOWN", 175, 625), _raw(9.05, 55.05, "UP", 175, 625),
+    ]
+    events = build_macro_events_tap(raw, _PLAY_REGION, anchor_host=54.0, end_host=None)
+    assert events[0].dt_ms == 4000  # 9.0 - 5.0 (from the last Play tap)
+
+
+def test_tap_anchor_ignores_gameplay_slide_in_play_region() -> None:
+    """A Slide tap during gameplay can land near the Play button's x-edge; the
+    anchor_host bound keeps it from being mistaken for the Play tap."""
+    raw = [
+        _raw(5.0, 50.0, "DOWN", 897, 617), _raw(5.05, 50.05, "UP", 897, 617),  # real Play
+        _raw(9.0, 55.5, "DOWN", 175, 625), _raw(9.05, 55.55, "UP", 175, 625),  # gameplay jump
+        _raw(9.5, 56.0, "DOWN", 1100, 640), _raw(10.5, 57.0, "UP", 1100, 640),  # Slide (in padded region!)
+    ]
+    events = build_macro_events_tap(raw, _PLAY_REGION, anchor_host=54.0, end_host=None)
+    # t=0 must be the real Play tap (5.0), so first input dt = 9.0-5.0 = 4000ms
+    assert events[0].dt_ms == 4000
+    assert (events[0].action, events[0].x, events[0].y) == ("DOWN", 175, 625)
+
+
+def test_tap_anchor_trims_after_end() -> None:
+    raw = [
+        _raw(5.0, 50.0, "DOWN", 897, 617), _raw(5.05, 50.05, "UP", 897, 617),  # Play
+        _raw(9.0, 55.0, "DOWN", 175, 625), _raw(9.05, 55.05, "UP", 175, 625),
+        _raw(20.0, 130.0, "DOWN", 617, 456), _raw(20.05, 130.05, "UP", 617, 456),  # post-END
+    ]
+    events = build_macro_events_tap(raw, _PLAY_REGION, anchor_host=54.0, end_host=120.0)
+    assert [(e.x, e.y) for e in events] == [(175, 625), (175, 625)]  # tail trimmed
+
+
+def test_tap_anchor_returns_none_without_play_tap() -> None:
+    """No Play tap in the stream → None so the caller falls back to visual anchor."""
+    raw = [
+        _raw(9.0, 55.0, "DOWN", 175, 625), _raw(9.05, 55.05, "UP", 175, 625),
+    ]
+    assert build_macro_events_tap(raw, _PLAY_REGION, anchor_host=54.0, end_host=None) is None
 
 
 # ---- Macro JSON round-trip -------------------------------------------------

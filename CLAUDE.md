@@ -15,7 +15,7 @@ Python 3.11+ · adbutils · opencv-python + numpy · minitouch (replay) · getev
 1. **Coordinate = pixel identity.** touch device max = 1279×719 = จอ 1280×720 → touch raw coord **เท่ากับ** pixel coord **ห้ามใส่การแปลง scale** ทั้ง macro และ menu tap อยู่ใน pixel space เดียวกัน
 2. **minitouch pressure ≤ 2.** device นี้ `ABS_MT_PRESSURE max = 2` → อ่าน max จาก minitouch banner แล้ว clamp **ห้าม hardcode 100/1000** (ตัวอย่างทั่วไปมักผิดตรงนี้)
 3. **State machine ไม่ hardcode transition.** ทุก loop จับภาพ → identify state → ทำ action การแตกแขนง (end_round → box/levelup/menu) resolve เองจากหน้าที่โผล่จริง
-4. **Macro replay อ้าง visual anchor.** เริ่มนับ macro t=0 ตอน detect หน้า GAMEPLAY (ปุ่ม pause) ทั้งตอน record และ replay — หักล้าง loading time ห้ามใช้ fixed delay เป็นหลัก
+4. **Macro t=0 = จังหวะกดปุ่ม Play (tap-anchor).** เริ่มนับ macro t=0 ตอน **tap `tpl_play_start`** ทั้ง record (device_ts ของ Play tap ใน getevent stream) และ replay (perf_counter ตอนยิง minitouch) → ไม่มี capture latency ในเส้นทางจับเวลา (จอ ADB screencap ช้า ~350-400ms = jitter ±หลายร้อย ms ถ้า anchor ด้วย visual). ปุ่ม pause (GAMEPLAY) ยังใช้อยู่ แต่เป็น **safety gate เท่านั้น** (ยืนยันด่านโหลดจริงก่อน replay) ไม่ใช้จับเวลา. gap แรกจึงรวมเวลา loading — error ที่เหลือ = loading variance (นิ่งกว่า capture jitter). ห้ามกลับไปใช้ visual pause เป็น t=0 หรือ fixed delay. ถ้าหา Play tap ใน stream ไม่เจอ → fallback visual anchor เดิม
 5. **identify ตามลำดับ priority.** popup/หน้าเฉพาะ ก่อน หน้าทั่วไป (ดู §4 ใน spec) — โดยเฉพาะ START_1↔START_3, END_BOX↔END_BOX_OPEN, START_2↔MONEY_POPUP ห้ามสับสน
 6. **money.png (เงินไม่พอ) → tap Cancel + STOP bot + log** ไม่เล่นต่อ
 

@@ -77,6 +77,7 @@ def _cmd_record(config: AppConfig, name: str) -> int:
         threshold=config.vision.default_threshold,
         poll_interval_ms=config.timing.poll_interval_ms,
         anchor_poll_ms=config.timing.anchor_poll_ms,
+        play_template="tpl_play_start",  # tap-anchor: read t=0 from the Play tap
     )
     logger.info("Play ONE clean round now (no Continue/Quit). Recording until END_ROUND...")
     macro = recorder.record(name)

@@ -131,6 +131,22 @@ def test_stop_mid_hold_releases_contact() -> None:
     assert mt.calls[1][0] < 5.0  # the UP is the release, not the scheduled 5s one
 
 
+def test_tap_anchor_schedules_from_passed_t0() -> None:
+    """Tap-anchor mode: t=0 is the caller's Play-tap timestamp (anchor_t0), so the
+    schedule is pinned to it regardless of when _replay actually starts."""
+    clock = FakeClock()
+    mt = FakeMinitouch(clock)
+    player = _player(mt, clock)
+    clock.sleep(3.0)  # simulate loading elapsing between the Play tap and _replay
+    play_t0 = 0.0     # the Play tap happened at t=0 (before the 3s load)
+    events = [_ev(4000, "DOWN", 1, 1), _ev(100, "UP", 1, 1)]  # first input 4s after t=0
+    assert player._replay(events, threading.Event(), threading.Event(),
+                          anchor_t0=play_t0) is True
+    # first input fires at play_t0 + 4.0s (measured from the tap, not from _replay start)
+    assert abs(mt.calls[0][0] - (play_t0 + 4.0)) < 0.005
+    assert abs(mt.calls[1][0] - (play_t0 + 4.1)) < 0.005
+
+
 def test_start_delay_shifts_macro_start() -> None:
     """start_delay_ms delays the whole macro after the anchor (compensates a
     record-vs-replay timing offset)."""

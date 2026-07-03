@@ -501,7 +501,8 @@ class ControlPanel:
                                      anchor_template="tpl_pause", end_template="tpl_result_ok",
                                      threshold=cfg.vision.default_threshold,
                                      poll_interval_ms=cfg.timing.poll_interval_ms,
-                                     anchor_poll_ms=cfg.timing.anchor_poll_ms)
+                                     anchor_poll_ms=cfg.timing.anchor_poll_ms,
+                                     play_template="tpl_play_start")  # tap-anchor t=0
             logger.info("recording '{}': play ONE clean round (stops at END_ROUND)", name)
             macro = recorder.record(name, stop_evt=self._stop_evt)
             out = Path(cfg.paths.macros_dir) / f"{name}.json"

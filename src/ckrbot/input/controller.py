@@ -57,12 +57,9 @@ class Controller:
         else:
             self._sleep(settle_ms / 1000.0)
 
-    def tap_template(self, frame: Frame, template_name: str) -> bool:
-        """Tap the center of ``template_name`` if it matches on ``frame``.
-
-        Returns False (without tapping) if the button isn't found — the caller
-        can re-loop rather than tap blindly.
-        """
+    def _locate(self, frame: Frame, template_name: str) -> tuple[int, int] | None:
+        """Return the tap center of ``template_name`` on ``frame``, or None if the
+        button isn't matched (confidence below threshold)."""
         tpl = self._templates.load(template_name)
         h, w = frame.shape[:2]
         region = tpl.region
@@ -75,8 +72,28 @@ class Controller:
             # Not found is often transient (screen mid-transition); the caller
             # re-loops, so log at DEBUG rather than spamming warnings.
             logger.debug("tap_template: {} not found ({:.3f})", template_name, result.confidence)
-            return False
-        self._mt.tap_raw(*result.center)
-        logger.debug("tapped {} @ {}", template_name, result.center)
+            return None
+        return result.center
+
+    def tap_template(self, frame: Frame, template_name: str) -> bool:
+        """Tap the center of ``template_name`` if it matches on ``frame``.
+
+        Returns False (without tapping) if the button isn't found — the caller
+        can re-loop rather than tap blindly.
+        """
+        return self.tap_template_at(frame, template_name) is not None
+
+    def tap_template_at(self, frame: Frame, template_name: str) -> float | None:
+        """Tap ``template_name`` and return the ``perf_counter`` instant of the tap
+        (or None if not found). The tap instant is macro t=0 for tap-anchored replay
+        (see MacroPlayer.play) — stamped right before the touch so it lines up with
+        the Play-button DOWN captured on the record side.
+        """
+        center = self._locate(frame, template_name)
+        if center is None:
+            return None
+        t0 = time.perf_counter()
+        self._mt.tap_raw(*center)
+        logger.debug("tapped {} @ {}", template_name, center)
         self._settle()
-        return True
+        return t0

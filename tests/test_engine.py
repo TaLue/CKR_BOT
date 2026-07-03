@@ -58,6 +58,10 @@ class FakeController:
         self.taps.append(template_name)
         return True
 
+    def tap_template_at(self, frame, template_name: str) -> float | None:
+        self.taps.append(template_name)
+        return 0.0  # tap-anchor t=0 (fake perf_counter)
+
     def tap_point(self, x: int, y: int, settle_ms: int | None = None) -> None:
         self.taps.append(("point", x, y))
 
@@ -66,10 +70,12 @@ class FakeMacroPlayer:
     def __init__(self) -> None:
         self.played = 0
         self.macros_played: list = []
+        self.t0s: list = []
 
-    def play(self, macro, stop_evt, pause_evt) -> bool:
+    def play(self, macro, stop_evt, pause_evt, t0=None) -> bool:
         self.played += 1
         self.macros_played.append(macro)
+        self.t0s.append(t0)
         return True
 
 

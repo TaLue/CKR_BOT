@@ -127,11 +127,12 @@ class Engine:
             if not randomize and state in (State.START_1, State.START_2, State.START_3):
                 # Double Coins randomization OFF: skip Multi-Buy — just Play the level
                 # (Play button is on START_1/START_3; START_2 won't occur without Multi).
-                if self._controller.tap_template(frame, _PLAY_START):
+                t0 = self._controller.tap_template_at(frame, _PLAY_START)  # tap instant = macro t=0
+                if t0 is not None:
                     macro = self._pick_macro()
                     logger.info("START (no Double Coins) → Play → replay '{}'",
                                 getattr(macro, "name", "?"))
-                    self._macro_player.play(macro, stop_evt, pause_evt)
+                    self._macro_player.play(macro, stop_evt, pause_evt, t0=t0)
                     in_round = True
                 stop_evt.wait(poll)
                 continue
@@ -163,11 +164,12 @@ class Engine:
                 continue
 
             if state == State.START_3:
-                if self._controller.tap_template(frame, _PLAY_START):
+                t0 = self._controller.tap_template_at(frame, _PLAY_START)  # tap instant = macro t=0
+                if t0 is not None:
                     macro = self._pick_macro()
                     logger.info("START_3 → Play → macro replay '{}'",
                                 getattr(macro, "name", "?"))
-                    self._macro_player.play(macro, stop_evt, pause_evt)
+                    self._macro_player.play(macro, stop_evt, pause_evt, t0=t0)
                     in_round = True
                 continue
 

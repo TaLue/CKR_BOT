@@ -84,8 +84,14 @@ class MacroPlayer:
         self._clock = clock
         self._sleep = sleep
 
-    def play(self, macro: Macro, stop_evt, pause_evt) -> bool:
+    def play(self, macro: Macro, stop_evt, pause_evt, t0: float | None = None) -> bool:
         """Wait for the anchor, then replay the event stream. True if completed.
+
+        ``t0`` (tap-anchor mode): when given, it is macro t=0 — the ``perf_counter``
+        instant the caller tapped Play (see Controller.tap_template_at). Timing then
+        carries no capture latency; the pause-icon wait below becomes a SAFETY GATE
+        only (confirm the round actually loaded), not the timing source. When None,
+        t=0 falls back to the pause-icon detection (legacy visual anchor).
 
         TODO(Phase 6): the GAMEPLAY anchor relies on tpl_pause alone, which can
         false-positive on the Continue/Quit overlay. Harden with a gameplay-only
@@ -93,7 +99,7 @@ class MacroPlayer:
         """
         if not self._wait_for_anchor(stop_evt):
             return False
-        return self._replay(macro.events, stop_evt, pause_evt)
+        return self._replay(macro.events, stop_evt, pause_evt, anchor_t0=t0)
 
     def _wait_for_anchor(self, stop_evt) -> bool:
         tpl = self._templates.load(self._anchor_template)
@@ -101,7 +107,7 @@ class MacroPlayer:
         while not stop_evt.is_set():
             frame = self._capture.grab()
             if find_template(frame, tpl.image, tpl.region).confidence >= self._threshold:
-                logger.info("GAMEPLAY anchor detected — macro t=0")
+                logger.info("GAMEPLAY detected (loading done)")
                 return True
             if self._clock() >= deadline:
                 logger.warning(
@@ -112,7 +118,7 @@ class MacroPlayer:
             self._sleep(self._anchor_poll_s)
         return False
 
-    def _replay(self, events, stop_evt, pause_evt, end_evt=None) -> bool:
+    def _replay(self, events, stop_evt, pause_evt, end_evt=None, anchor_t0=None) -> bool:
         # end_evt fires when the round has ended early (Result screen). A watcher
         # thread sets it by polling for _end_templates; tests may pass their own.
         watch_stop = threading.Event()
@@ -123,9 +129,18 @@ class MacroPlayer:
                     target=self._watch_end, args=(end_evt, stop_evt, watch_stop), daemon=True
                 ).start()
 
-        t0 = self._clock() + self._start_delay_s  # shift whole macro by the start offset
+        # Tap-anchor: t=0 is the Play tap passed in (capture-latency-free). Legacy:
+        # t=0 is now (just after the pause-icon detection = visual anchor).
+        base_t0 = anchor_t0 if anchor_t0 is not None else self._clock()
+        t0 = base_t0 + self._start_delay_s  # shift whole macro by the start offset
         elapsed = 0.0  # cumulative dt from the macro (seconds)
         contact_open = False
+        if events:
+            logger.info(
+                "replay: t=0 @ {} anchor, first input in {} ms (+{:.0f} ms start_delay)",
+                "Play-tap" if anchor_t0 is not None else "pause",
+                events[0].dt_ms, self._start_delay_s * 1000,
+            )
 
         def release() -> None:
             nonlocal contact_open
