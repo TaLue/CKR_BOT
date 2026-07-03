@@ -156,7 +156,7 @@ class ControlPanel:
                     textvariable=self._delay_var).grid(row=1, column=4, sticky="w", padx=4,
                                                        pady=(4, 0))
         self._boost_var = tk.BooleanVar(value=self._cfg.farm.tap_boost)
-        ttk.Checkbutton(opts, text="Tap boost icon", variable=self._boost_var).grid(
+        ttk.Checkbutton(opts, text="Tap cookie relay", variable=self._boost_var).grid(
             row=1, column=5, sticky="w", padx=(12, 0), pady=(4, 0))
 
         status = ttk.Frame(self._root, padding=8)
