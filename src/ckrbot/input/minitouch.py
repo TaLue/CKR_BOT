@@ -208,7 +208,7 @@ class MinitouchClient:
             self._send(f"m 0 {xi} {yi} {p}\nc\n")
             if duration_ms:
                 time.sleep(duration_ms / 1000.0 / steps)
-        self._send(f"u 0\n")
+        self._send(f"u 0\nc\n")
 
     # --- teardown -----------------------------------------------------------
     def _teardown(self) -> None:

@@ -29,4 +29,4 @@ def test_swipe_emits_down_moves_up_on_contact_0() -> None:
     assert cmds.count("m 0 ") == 4
     assert "m 0 400 320 2\nc\n" in cmds  # final move lands on the target
     # ends by releasing contact 0
-    assert cmds.rstrip().endswith("u 0")
+    assert cmds.endswith("u 0\nc\n")  # release is committed (finger not left down)
