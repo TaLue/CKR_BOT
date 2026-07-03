@@ -177,15 +177,21 @@ class ControlPanel:
 
         self._root.protocol("WM_DELETE_WINDOW", self._on_close)
 
+    def _macros_dir(self) -> Path:
+        return Path(self._cfg.paths.macros_dir)
+
+    def _selected_path(self) -> Path | None:
+        """Full path of the macro selected in the dropdown (shows only the name)."""
+        name = self._macro_var.get()
+        return (self._macros_dir() / name) if name else None
+
     def _refresh_macros(self) -> None:
-        macros = sorted(str(p) for p in Path(self._cfg.paths.macros_dir).glob("*.json"))
-        self._macro_combo["values"] = macros
-        current = self._macro_var.get()
-        if current not in macros:  # stale (deleted/renamed) or unset -> pick a default
-            default = self._cfg.farm.macro_file
-            self._macro_var.set(default if default in macros else (macros[0] if macros else ""))
+        names = sorted(p.name for p in self._macros_dir().glob("*.json"))
+        self._macro_combo["values"] = names  # show file names, not full paths
+        if self._macro_var.get() not in names:  # stale (deleted/renamed) or unset
+            default = Path(self._cfg.farm.macro_file).name
+            self._macro_var.set(default if default in names else (names[0] if names else ""))
         # Drop any active-pool entries whose files no longer exist.
-        names = {Path(m).name for m in macros}
         self._active_names = [n for n in self._active_names if n in names]
         self._update_active_label()
 
@@ -203,7 +209,8 @@ class ControlPanel:
             return
         max_rounds = max(0, self._safe_int(self._rounds_var.get(), 0))
         start_delay = self._safe_int(self._delay_var.get(), 0)
-        macro_file = self._macro_var.get() or self._cfg.farm.macro_file
+        sel = self._selected_path()
+        macro_file = str(sel) if sel is not None else self._cfg.farm.macro_file
         self._cfg.farm.max_rounds = max_rounds
         self._cfg.farm.macro_file = macro_file
         self._cfg.farm.tap_boost = bool(self._boost_var.get())
@@ -247,14 +254,14 @@ class ControlPanel:
     def _on_delete(self) -> None:
         if self._running() or self._recording:
             return
-        path = self._macro_var.get()
-        if not path:
+        path = self._selected_path()
+        if path is None:
             return
-        name = Path(path).name
+        name = path.name
         if not messagebox.askyesno("Delete macro", f"Delete this macro?\n\n{name}"):
             return
         try:
-            Path(path).unlink()
+            path.unlink()
             logger.info("deleted macro: {}", name)
         except OSError as err:
             messagebox.showerror("Delete failed", str(err))
@@ -264,10 +271,9 @@ class ControlPanel:
     def _on_rename(self) -> None:
         if self._running() or self._recording:
             return
-        path = self._macro_var.get()
-        if not path:
+        old = self._selected_path()
+        if old is None:
             return
-        old = Path(path)
         new_stem = simpledialog.askstring("Rename macro", "New name:", initialvalue=old.stem)
         if not new_stem or not new_stem.strip():
             return
@@ -284,7 +290,7 @@ class ControlPanel:
             macro.save(new_path)
             old.unlink()
             logger.info("renamed macro: {} -> {}", old.name, new_path.name)
-            self._macro_var.set(str(new_path))
+            self._macro_var.set(new_path.name)
         except Exception as err:  # noqa: BLE001
             messagebox.showerror("Rename failed", str(err))
         self._refresh_macros()
@@ -294,13 +300,13 @@ class ControlPanel:
 
     def _active_macro_files(self) -> list[str]:
         """Files for the current run: the active pool, else the dropdown selection."""
-        mdir = Path(self._cfg.paths.macros_dir)
+        mdir = self._macros_dir()
         files = [str(mdir / n) for n in self._active_names if (mdir / n).exists()]
         if files:
             return files
-        sel = self._macro_var.get()
-        if sel and Path(sel).exists():
-            return [sel]
+        sel = self._selected_path()
+        if sel is not None and sel.exists():
+            return [str(sel)]
         if Path(self._cfg.farm.macro_file).exists():
             return [self._cfg.farm.macro_file]
         return []
