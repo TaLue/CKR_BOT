@@ -268,5 +268,25 @@
       492
     ],
     "method": "color-blob"
+  },
+  "tpl_daily_checkin": {
+    "source": "daily_checkin.png",
+    "box": [
+      475,
+      20,
+      810,
+      82
+    ],
+    "method": "fixed"
+  },
+  "tpl_daily_ok": {
+    "source": "daily_checkin.png",
+    "box": [
+      545,
+      626,
+      738,
+      692
+    ],
+    "method": "color-blob"
   }
 }

@@ -27,6 +27,7 @@ class State(str, Enum):
     MONEY_POPUP = "MONEY_POPUP"
     CONN_LOST = "CONN_LOST"
     FRIEND_INFO = "FRIEND_INFO"
+    DAILY_CHECKIN = "DAILY_CHECKIN"
     UNKNOWN = "UNKNOWN"
 
 
@@ -36,6 +37,8 @@ CKR_SCREENS: list[ScreenSpec] = [
     ScreenSpec(State.CONN_LOST, markers=("tpl_conn_lost",)),
     # Friend's Info popup (overlay) — close it with the top-right X.
     ScreenSpec(State.FRIEND_INFO, markers=("tpl_friend_info",)),
+    # Daily Check-in popup (appears over MAIN_MENU on login) — dismiss with OK.
+    ScreenSpec(State.DAILY_CHECKIN, markers=("tpl_daily_checkin",)),
     ScreenSpec(State.MONEY_POPUP, markers=("tpl_cancel",)),
     ScreenSpec(State.START_2, markers=("tpl_multibuy",)),
     ScreenSpec(State.CAPTCHA, markers=("tpl_captcha_header",)),
@@ -66,4 +69,5 @@ TAP_PLAN: dict[str, tuple[str, ...]] = {
     State.MONEY_POPUP: ("tpl_cancel",),                  # Cancel (then STOP)
     State.CONN_LOST: ("tpl_conn_confirm",),              # Confirm (retry connection)
     State.FRIEND_INFO: ("tpl_friend_close",),            # X (close friend popup)
+    State.DAILY_CHECKIN: ("tpl_daily_ok",),              # OK (dismiss daily check-in)
 }
