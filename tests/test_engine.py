@@ -159,15 +159,16 @@ def test_menu_reward_collected_before_counting_round() -> None:
     assert eng.round_count == 1
 
 
-def test_money_popup_taps_cancel_and_stops() -> None:
+def test_money_popup_dismissed_without_stopping() -> None:
+    """Not enough Coins: tap Cancel and KEEP FARMING (no self-stop). Two popups in a
+    row are both dismissed, proving the bot does not stop after the first."""
     stop = threading.Event()
-    frames = ["money.png"]
+    frames = ["money.png", "money.png"]
     eng, ctrl, player = _engine(frames, stop)
     eng.run(stop, threading.Event())
 
-    assert ctrl.taps == ["tpl_cancel"]
-    assert stop.is_set()
-    assert eng.round_count == 0  # money popup stops without completing a round
+    assert ctrl.taps.count("tpl_cancel") == 2  # both dismissed; not stopped after the 1st
+    assert eng.round_count == 0                 # no round completed, but bot kept running
 
 
 def test_captcha_solves_three_correct_rounds_until_cleared() -> None:

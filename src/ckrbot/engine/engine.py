@@ -115,10 +115,13 @@ class Engine:
                 awaiting_double_coins = False
 
             if state == State.MONEY_POPUP:
+                # Not enough coins for an (optional) buy — dismiss and KEEP FARMING
+                # instead of stopping. Cancel never spends anything, so worst case is
+                # a harmless retry; the flow returns to START and taps Play as usual.
                 self._controller.tap_template(frame, _CANCEL)
-                logger.error("MONEY_POPUP (เงินไม่พอ) → Cancel + STOP bot")
-                stop_evt.set()
-                break
+                logger.info("MONEY_POPUP (เงินไม่พอ) → Cancel + skip (keep farming)")
+                stop_evt.wait(poll)
+                continue
 
             if state == State.CAPTCHA:
                 self._handle_captcha(stop_evt)
@@ -262,7 +265,7 @@ class Engine:
             points = solve_captcha(frame)
             # Log all 6 card scores (lowest 2 = the picks) so a wrong pick is
             # diagnosable from the log alone; the annotated frame is dumped too.
-            scores = [round(s, 3) for s in card_scores(frame)]
+            scores = [round(float(s), 3) for s in card_scores(frame)]
             logger.info("CAPTCHA tries {}/3: tap {} | card scores {}", tries, points, scores)
             self._dump_captcha(frame, points, tries)
             gap_s = self._cfg.captcha.tap_gap_ms / 1000.0
