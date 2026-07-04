@@ -23,7 +23,7 @@ from loguru import logger
 
 from ckrbot.config.models import AppConfig
 from ckrbot.engine.watchdog import Watchdog
-from ckrbot.game.captcha import read_tries, solve_captcha_multiframe
+from ckrbot.game.captcha import read_tries, solve_captcha
 from ckrbot.game.states import TAP_PLAN, State
 
 # Templates whose match gives the tap point for special-cased states.
@@ -220,7 +220,7 @@ class Engine:
         logger.info("engine stopped (rounds={})", self.round_count)
 
     def _handle_captcha(self, stop_evt, max_wrong=None, max_rounds=None,
-                        vote_frames=None, round_timeout_ms=None) -> None:
+                        round_timeout_ms=None) -> None:
         """Solve the CAPTCHA — 3 correct rounds IN A ROW (Tries left 3/3 → 2/3 →
         1/3 → cleared). Each round shows 6 ANIMATED cards; tap the 2 that differ,
         sampling frames and majority-voting to beat the animation.
@@ -235,7 +235,6 @@ class Engine:
         """
         max_wrong = self._cfg.captcha.max_wrong if max_wrong is None else max_wrong
         max_rounds = self._cfg.captcha.max_rounds if max_rounds is None else max_rounds
-        vote_frames = self._cfg.captcha.vote_frames if vote_frames is None else vote_frames
         timeout_s = (self._cfg.captcha.round_timeout_ms if round_timeout_ms is None
                      else round_timeout_ms) / 1000.0
         poll = self._cfg.timing.poll_interval_ms / 1000.0
@@ -258,18 +257,16 @@ class Engine:
                 stop_evt.set()
                 return
 
-            # Sample extra frames (different animation phases) and vote.
-            frames = [frame]
-            for _ in range(max(0, vote_frames - 1)):
-                if stop_evt.is_set():
-                    return
-                self._sleep(0.12)
-                frames.append(self._capture.grab(True))
-            points = solve_captcha_multiframe(frames)
+            # One frame captures all 6 cards in the SAME instant, so the 4-alike vs
+            # 2-alike split is clean (no cross-phase animation noise from voting).
+            points = solve_captcha(frame)
             logger.info("CAPTCHA tries {}/3: tapping 2 odd cards {}", tries, points)
-            self._dump_captcha(frames[-1], points, tries)
-            for (x, y) in points:
+            self._dump_captcha(frame, points, tries)
+            gap_s = self._cfg.captcha.tap_gap_ms / 1000.0
+            for i, (x, y) in enumerate(points):
                 self._controller.tap_point(x, y, settle_ms=_CAPTCHA_TAP_SETTLE_MS)
+                if i == 0 and gap_s > 0:  # let the game register the 1st pick before the 2nd
+                    self._sleep(gap_s)
 
             outcome = self._await_tries_change(tries, timeout_s, stop_evt)
             if outcome == "cleared":

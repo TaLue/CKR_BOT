@@ -183,7 +183,7 @@ def test_captcha_solves_three_correct_rounds_until_cleared() -> None:
         "end_round.png",  # await: captcha gone -> cleared
     ]
     eng, ctrl, player = _engine(frames, stop)
-    eng._handle_captcha(stop, max_wrong=5, vote_frames=1)
+    eng._handle_captcha(stop, max_wrong=5)
 
     points = [t for t in ctrl.taps if isinstance(t, tuple) and t[0] == "point"]
     assert len(points) == 3 * 2  # 3 rounds solved, 2 taps each
@@ -197,7 +197,7 @@ def test_captcha_counts_only_wrong_rounds_and_stops_after_max() -> None:
     # Each round: read 2/3, tap, then await sees 3/3 (reset) -> wrong.
     frames = ["capcha_2.png", "capcha_1.png", "capcha_2.png", "capcha_1.png"]
     eng, ctrl, player = _engine(frames, stop)
-    eng._handle_captcha(stop, max_wrong=2, vote_frames=1)
+    eng._handle_captcha(stop, max_wrong=2)
 
     points = [t for t in ctrl.taps if isinstance(t, tuple) and t[0] == "point"]
     assert len(points) == 2 * 2  # 2 wrong rounds attempted before stopping
@@ -213,7 +213,7 @@ def test_captcha_timeout_not_counted_as_wrong() -> None:
     # -> max 1 await check, so exactly one same-tries frame is consumed.
     frames = ["capcha_1.png", "capcha_1.png", "end_round.png"]
     eng, ctrl, player = _engine(frames, stop)
-    eng._handle_captcha(stop, max_wrong=5, max_rounds=15, vote_frames=1, round_timeout_ms=100)
+    eng._handle_captcha(stop, max_wrong=5, max_rounds=15, round_timeout_ms=100)
     assert not stop.is_set()  # timeout did not count as wrong / did not stop the bot
 
 

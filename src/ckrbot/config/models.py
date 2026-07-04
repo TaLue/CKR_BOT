@@ -102,9 +102,9 @@ class CaptchaConfig(BaseModel):
 
     max_wrong: int = Field(default=5, ge=1)          # stop after this many WRONG (reset) rounds
     max_rounds: int = Field(default=15, ge=1)        # total-attempts safety cap (avoid looping)
-    vote_frames: int = Field(default=3, ge=1)        # frames sampled per round (beat animation)
     round_timeout_ms: int = Field(default=2500, ge=300)  # wait for Tries left to change (retry after)
     poll_ms: int = Field(default=200, ge=20)         # how often to re-check Tries left (faster = snappier)
+    tap_gap_ms: int = Field(default=1200, ge=0)      # delay between the 2 card taps (let the game register the 1st)
 
 
 class HeartsConfig(BaseModel):
