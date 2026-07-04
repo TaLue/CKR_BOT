@@ -121,12 +121,12 @@ class HeartsConfig(BaseModel):
     # Rows area, compared before/after a scroll to detect the bottom of the list.
     list_region: tuple[int, int, int, int] = (150, 265, 720, 625)
     swipe_from: tuple[int, int] = (430, 560)
-    swipe_to: tuple[int, int] = (430, 320)
+    swipe_to: tuple[int, int] = (430, 430)  # ~130px/swipe (~1.2 rows, overlap so none skipped)
     swipe_ms: int = Field(default=400, ge=0)
     action_delay_ms: int = Field(default=600, ge=0)   # wait after a tap for the next screen
     scroll_settle_ms: int = Field(default=700, ge=0)  # wait after a swipe before compare/re-scan
     poll_ms: int = Field(default=400, ge=0)
-    max_scrolls: int = Field(default=40, ge=1)        # safety cap on total scrolls
+    max_scrolls: int = Field(default=80, ge=1)        # safety cap (smaller swipes -> more allowed)
     unchanged_mad: float = Field(default=2.0, ge=0.0)  # list mean-abs-diff below this = at bottom
 
 

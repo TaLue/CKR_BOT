@@ -53,10 +53,10 @@ hearts:
   sent_confirm_region: [480, 405, 800, 512]  # dialog 2 Confirm (center)
   list_region: [150, 265, 720, 625]      # rows area, for scroll-end compare
   swipe_from: [430, 560]
-  swipe_to: [430, 320]
+  swipe_to: [430, 430]      # scroll ~130px/swipe (~1.2 rows, overlap so no friend is skipped)
   swipe_ms: 400
   action_delay_ms: 600
   scroll_settle_ms: 700
   poll_ms: 400
-  max_scrolls: 40
+  max_scrolls: 80           # smaller swipes -> allow more before the safety cap
   unchanged_mad: 2.0
