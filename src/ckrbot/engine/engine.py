@@ -23,7 +23,7 @@ from loguru import logger
 
 from ckrbot.config.models import AppConfig
 from ckrbot.engine.watchdog import Watchdog
-from ckrbot.game.captcha import read_tries, solve_captcha
+from ckrbot.game.captcha import card_scores, read_tries, solve_captcha
 from ckrbot.game.states import TAP_PLAN, State
 
 # Templates whose match gives the tap point for special-cased states.
@@ -260,7 +260,10 @@ class Engine:
             # One frame captures all 6 cards in the SAME instant, so the 4-alike vs
             # 2-alike split is clean (no cross-phase animation noise from voting).
             points = solve_captcha(frame)
-            logger.info("CAPTCHA tries {}/3: tapping 2 odd cards {}", tries, points)
+            # Log all 6 card scores (lowest 2 = the picks) so a wrong pick is
+            # diagnosable from the log alone; the annotated frame is dumped too.
+            scores = [round(s, 3) for s in card_scores(frame)]
+            logger.info("CAPTCHA tries {}/3: tap {} | card scores {}", tries, points, scores)
             self._dump_captcha(frame, points, tries)
             gap_s = self._cfg.captcha.tap_gap_ms / 1000.0
             for i, (x, y) in enumerate(points):

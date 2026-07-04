@@ -10,6 +10,7 @@ import pytest
 from ckrbot.game.captcha import (
     CARD_REGIONS,
     card_center,
+    card_scores,
     find_odd_cards,
     read_tries,
     solve_captcha,
@@ -41,6 +42,15 @@ ODD = {
 @pytest.mark.parametrize("fixture,expected", list(ODD.items()))
 def test_find_odd_cards(fixture: str, expected: list[int]) -> None:
     assert find_odd_cards(_frame(fixture)) == expected
+
+
+@pytest.mark.parametrize("fixture,expected", list(ODD.items()))
+def test_card_scores_lowest_two_are_the_odd_cards(fixture: str, expected: list[int]) -> None:
+    """The diagnostic scores (mean similarity) must rank the 2 odd cards lowest."""
+    scores = card_scores(_frame(fixture))
+    assert len(scores) == 6
+    lowest_two = sorted(sorted(range(6), key=lambda i: scores[i])[:2])
+    assert lowest_two == expected
 
 
 @pytest.mark.parametrize("fixture,expected", list(ODD.items()))
