@@ -97,3 +97,7 @@ class Controller:
         logger.debug("tapped {} @ {}", template_name, center)
         self._settle()
         return t0
+
+    def swipe(self, x1: int, y1: int, x2: int, y2: int, duration_ms: int = 300) -> None:
+        """Scroll/drag from (x1,y1) to (x2,y2) via minitouch (e.g. scroll a list)."""
+        self._mt.swipe(x1, y1, x2, y2, duration_ms)

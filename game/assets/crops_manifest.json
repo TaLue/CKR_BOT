@@ -238,5 +238,35 @@
       428
     ],
     "method": "color-blob"
+  },
+  "tpl_send_life": {
+    "source": "friend_list.png",
+    "box": [
+      600,
+      296,
+      710,
+      350
+    ],
+    "method": "color-blob"
+  },
+  "tpl_life_confirm": {
+    "source": "click_sent.png",
+    "box": [
+      702,
+      424,
+      884,
+      492
+    ],
+    "method": "color-blob"
+  },
+  "tpl_sent_confirm": {
+    "source": "confirm_sent.png",
+    "box": [
+      516,
+      424,
+      764,
+      492
+    ],
+    "method": "color-blob"
   }
 }

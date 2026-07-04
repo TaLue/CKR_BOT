@@ -166,6 +166,16 @@ class ControlPanel:
         ttk.Checkbutton(opts, text="Randomize Double Coins", variable=self._rdc_var).grid(
             row=2, column=2, columnspan=4, sticky="w", pady=(4, 0))
 
+        # Row 3: Send Hearts (free Life) — its own Start/Stop, mutually exclusive
+        # with the farm (both share the worker; _running() blocks a second run).
+        ttk.Label(opts, text="Send Hearts:").grid(row=3, column=0, sticky="w", pady=(6, 0))
+        self._hearts_start_btn = ttk.Button(opts, text="Start", width=8,
+                                            command=self._on_hearts_start)
+        self._hearts_start_btn.grid(row=3, column=1, sticky="w", padx=4, pady=(6, 0))
+        self._hearts_stop_btn = ttk.Button(opts, text="Stop", width=8,
+                                           command=self._on_hearts_stop)
+        self._hearts_stop_btn.grid(row=3, column=2, sticky="w", padx=2, pady=(6, 0))
+
         status = ttk.Frame(self._root, padding=8)
         status.pack(fill="x")
         self._round_var = tk.StringVar(value="Round: 0 / -")
@@ -244,6 +254,21 @@ class ControlPanel:
     def _on_stop(self) -> None:
         if self._running():
             logger.info("stopping...")
+            self._stop_evt.set()
+
+    def _on_hearts_start(self) -> None:
+        if self._recording or self._running():
+            logger.info("cannot start Send Hearts while another run is active")
+            return
+        self._stop_evt = threading.Event()
+        self._pause_evt = threading.Event()
+        self._worker = threading.Thread(target=self._run_hearts, daemon=True)
+        self._worker.start()
+        logger.info("Send Hearts: start (be on the Friends list)")
+
+    def _on_hearts_stop(self) -> None:
+        if self._running():
+            logger.info("Send Hearts: stopping...")
             self._stop_evt.set()
 
     def _on_reset(self) -> None:
@@ -484,6 +509,37 @@ class ControlPanel:
             self._engine = None
             logger.info("engine stopped")
 
+    def _run_hearts(self) -> None:
+        from ckrbot.capture.screen import ScreenCapture
+        from ckrbot.hearts.sender import HeartSender
+        from ckrbot.input.controller import Controller
+        from ckrbot.input.minitouch import MinitouchClient
+        from ckrbot.vision.template import TemplateStore
+
+        cfg = self._cfg
+        try:
+            adb = self._ensure_adb()
+            capture = ScreenCapture(adb, cfg.device.width, cfg.device.height)
+            templates = TemplateStore(cfg.paths.assets_dir)
+            self._mt = MinitouchClient(adb, _minitouch_binary(cfg))
+            self._mt.start()
+            controller = Controller(self._mt, templates,
+                                    threshold=cfg.vision.tap_threshold,
+                                    tap_delay_ms=cfg.timing.tap_delay_ms,
+                                    tap_delay_spread_ms=cfg.timing.tap_delay_spread_ms)
+            sender = HeartSender(capture, controller, templates, cfg.hearts)
+            sender.run(self._stop_evt)
+        except Exception as err:  # noqa: BLE001 - surface any failure to the log pane
+            logger.exception("send hearts error: {}", err)
+        finally:
+            if self._mt is not None:
+                try:
+                    self._mt.close()
+                except Exception:  # noqa: BLE001
+                    pass
+                self._mt = None
+            logger.info("send hearts stopped")
+
     def _run_record(self) -> None:
         from datetime import datetime
 
@@ -518,7 +574,8 @@ class ControlPanel:
     def _set_buttons_recording(self, recording: bool) -> None:
         state = "disabled" if recording else "normal"
         for btn in (self._start_btn, self._pause_btn, self._stop_btn, self._reset_btn,
-                    self._rename_btn, self._delete_btn, self._connect_btn, self._active_btn):
+                    self._rename_btn, self._delete_btn, self._connect_btn, self._active_btn,
+                    self._hearts_start_btn, self._hearts_stop_btn):
             btn.configure(state=state)
 
     def _append_log(self, line: str) -> None:
