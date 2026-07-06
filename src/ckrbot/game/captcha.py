@@ -11,9 +11,6 @@ The card grid coordinates are CKR-specific, so this lives in the game layer.
 
 from __future__ import annotations
 
-from collections import Counter
-from collections.abc import Sequence
-
 import cv2
 import numpy as np
 
@@ -46,11 +43,12 @@ def _similarity(a: np.ndarray, b: np.ndarray) -> float:
     return float(cv2.matchTemplate(a, b, cv2.TM_CCOEFF_NORMED)[0, 0])
 
 
-def find_odd_cards(frame: Frame, num_odd: int = NUM_ODD) -> list[int]:
-    """Return the indices (0..5) of the ``num_odd`` cards that differ from the rest.
+def card_scores(frame: Frame) -> list[float]:
+    """Per-card 'oddness' score = mean similarity to the other five (0..1).
 
-    Each card's score is its mean similarity to the other five; the odd cards
-    (minority pose) score lowest.
+    The odd (minority-pose) cards match the majority poorly, so they score LOWEST.
+    Exposed so the engine can log all six scores for diagnosis (a wrong pick shows
+    up as a thin margin between the 2 chosen and the rest).
     """
     cards = [frame[y1:y2, x1:x2] for (x1, y1, x2, y2) in CARD_REGIONS]
     n = len(cards)
@@ -59,35 +57,25 @@ def find_odd_cards(frame: Frame, num_odd: int = NUM_ODD) -> list[int]:
         for j in range(i + 1, n):
             s = _similarity(cards[i], cards[j])
             sim[i, j] = sim[j, i] = s
-    mean_sim = [(sim[i].sum() - 1.0) / (n - 1) for i in range(n)]
-    return sorted(sorted(range(n), key=lambda i: mean_sim[i])[:num_odd])
+    return [(sim[i].sum() - 1.0) / (n - 1) for i in range(n)]
+
+
+def find_odd_cards(frame: Frame, num_odd: int = NUM_ODD) -> list[int]:
+    """Return the indices (0..5) of the ``num_odd`` cards that differ from the rest
+    (lowest mean similarity to the others)."""
+    scores = card_scores(frame)
+    return sorted(sorted(range(len(scores)), key=lambda i: scores[i])[:num_odd])
 
 
 def solve_captcha(frame: Frame, num_odd: int = NUM_ODD) -> list[tuple[int, int]]:
-    """Return the (x, y) tap points for the odd cards (to tap in order)."""
-    return [card_center(CARD_REGIONS[i]) for i in find_odd_cards(frame, num_odd)]
+    """Return the (x, y) tap points for the odd cards (to tap in order).
 
-
-def find_odd_cards_voted(frames: Sequence[Frame], num_odd: int = NUM_ODD) -> list[int]:
-    """Odd-card indices decided by majority vote across several frames.
-
-    The cards animate, so a single frame can misjudge the minority at a bad
-    animation phase. Sampling multiple frames and taking the cards flagged odd
-    most often is robust to that.
+    One frame is enough: all 6 cards are captured in the same instant, so the
+    4-alike vs 2-alike split is clean — no cross-phase animation noise. (Confirmed
+    on a real 'sliding card' round where one odd slot is even empty: still resolves
+    the two minority cards.)
     """
-    votes: Counter[int] = Counter()
-    for frame in frames:
-        votes.update(find_odd_cards(frame, num_odd))
-    # Highest-voted first; ties broken by card index for determinism.
-    ranked = sorted(votes.items(), key=lambda kv: (-kv[1], kv[0]))
-    return sorted(idx for idx, _ in ranked[:num_odd])
-
-
-def solve_captcha_multiframe(
-    frames: Sequence[Frame], num_odd: int = NUM_ODD
-) -> list[tuple[int, int]]:
-    """Voted (x, y) tap points for the odd cards across ``frames``."""
-    return [card_center(CARD_REGIONS[i]) for i in find_odd_cards_voted(frames, num_odd)]
+    return [card_center(CARD_REGIONS[i]) for i in find_odd_cards(frame, num_odd)]
 
 
 def read_tries(

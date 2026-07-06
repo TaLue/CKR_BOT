@@ -46,6 +46,7 @@ CASES = [
     ("end_round_level_up.png", State.LEVEL_UP),
     ("conn_lost.png", State.CONN_LOST),
     ("friend_info.png", State.FRIEND_INFO),
+    ("daily_checkin.png", State.DAILY_CHECKIN),
 ]
 
 
@@ -67,6 +68,14 @@ def test_endbox_and_endboxopen_not_confused() -> None:
 def test_start2_and_money_not_confused() -> None:
     assert _ident.identify(_frame("start_step_2.png")) == State.START_2
     assert _ident.identify(_frame("money.png")) == State.MONEY_POPUP
+
+
+def test_daily_ok_locatable_on_daily_checkin() -> None:
+    """tpl_daily_ok is the DAILY_CHECKIN tap target — verify it is locatable there."""
+    tpl = _store.load("tpl_daily_ok")
+    result = find_template(_frame("daily_checkin.png"), tpl.image, tpl.region)
+    assert result.confidence >= 0.85
+    assert result.center == (641, 659)  # green OK button center
 
 
 def test_play_main_locatable_on_main_menu() -> None:

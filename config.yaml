@@ -42,9 +42,9 @@ vision:
 captcha:
   max_wrong: 5             # stop the bot after this many WRONG rounds (Tries left reset up)
   max_rounds: 15           # total-attempts safety cap (timeouts/retries don't count as wrong)
-  vote_frames: 3           # frames sampled per round to vote through the card animation
   round_timeout_ms: 2500   # how long to wait for Tries left to change before retrying a tap
   poll_ms: 200             # how often to re-check Tries left (lower = detects the change faster)
+  tap_gap_ms: 1200         # delay between the 2 card taps (let the game register the 1st)
 
 hearts:
   threshold: 0.85
