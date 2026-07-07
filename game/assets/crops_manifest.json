@@ -2,9 +2,9 @@
   "tpl_play_main": {
     "source": "main_menu.png",
     "box": [
-      743,
-      590,
-      1166,
+      770,
+      595,
+      1140,
       695
     ],
     "method": "color-blob"
