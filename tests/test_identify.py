@@ -47,6 +47,7 @@ CASES = [
     ("conn_lost.png", State.CONN_LOST),
     ("friend_info.png", State.FRIEND_INFO),
     ("daily_checkin.png", State.DAILY_CHECKIN),
+    ("title.png", State.TITLE),
 ]
 
 

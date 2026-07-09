@@ -288,5 +288,15 @@
       692
     ],
     "method": "color-blob"
+  },
+  "tpl_title": {
+    "source": "title.png",
+    "box": [
+      300,
+      410,
+      990,
+      550
+    ],
+    "method": "fixed"
   }
 }

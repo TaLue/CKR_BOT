@@ -171,6 +171,19 @@ def test_money_popup_dismissed_without_stopping() -> None:
     assert eng.round_count == 0                 # no round completed, but bot kept running
 
 
+def test_title_screen_taps_to_start_and_does_not_stop() -> None:
+    """Game relaunch title/loading screen: tap 'touch to start' and KEEP RUNNING
+    (identified, so it must not trip the UNKNOWN watchdog / stop the bot)."""
+    stop = threading.Event()
+    frames = ["title.png", "title.png"]
+    eng, ctrl, player = _engine(frames, stop)
+    eng.run(stop, threading.Event())
+
+    taps = [t for t in ctrl.taps if isinstance(t, tuple) and t[0] == "point"]
+    assert len(taps) == 2 and taps[0] == ("point", 640, 650)  # tapped to start both times
+    assert eng.round_count == 0  # relaunch is not a completed round
+
+
 def test_captcha_solves_three_correct_rounds_until_cleared() -> None:
     """Tries left 3/3 → 2/3 → 1/3 → cleared: 3 correct rounds. Screens persist
     across the await-detect and the next solve grab, so frames are duplicated."""

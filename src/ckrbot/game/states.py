@@ -28,11 +28,15 @@ class State(str, Enum):
     CONN_LOST = "CONN_LOST"
     FRIEND_INFO = "FRIEND_INFO"
     DAILY_CHECKIN = "DAILY_CHECKIN"
+    TITLE = "TITLE"
     UNKNOWN = "UNKNOWN"
 
 
 # Ordered by detection priority (spec §4): index 0 checked first.
 CKR_SCREENS: list[ScreenSpec] = [
+    # Game relaunch title/loading screen (e.g. after a dropped connection the game
+    # re-downloads) — wait it out / tap to start; must NOT be treated as UNKNOWN.
+    ScreenSpec(State.TITLE, markers=("tpl_title",)),
     # Blocking network-error overlay — can appear over any screen; tap Confirm to retry.
     ScreenSpec(State.CONN_LOST, markers=("tpl_conn_lost",)),
     # Friend's Info popup (overlay) — close it with the top-right X.

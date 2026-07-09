@@ -127,6 +127,16 @@ class Engine:
                 self._handle_captcha(stop_evt)
                 continue
 
+            if state == State.TITLE:
+                # Game relaunched (e.g. a dropped connection re-downloads + shows the
+                # title). Tap to pass "touch to start" and wait for a known screen —
+                # being identified, this does NOT trip the UNKNOWN watchdog. The
+                # interrupted round is void, so clear in_round.
+                self._controller.tap_point(640, 650)
+                in_round = False
+                stop_evt.wait(poll)
+                continue
+
             if not randomize and state in (State.START_1, State.START_2, State.START_3):
                 # Double Coins randomization OFF: skip Multi-Buy — just Play the level
                 # (Play button is on START_1/START_3; START_2 won't occur without Multi).
